@@ -132,7 +132,7 @@ class V0ProjectPermissionServiceImpl @Autowired constructor(
 
     override fun verifyUserProjectPermission(accessToken: String?, projectCode: String, userId: String): Boolean {
         val accessTokenNew = if (accessToken.isNullOrEmpty()) {
-            authTokenApi.getAccessToken(serviceCode)
+            authTokenApi.getAccessToken(bsProjectAuthServiceCode)
         } else accessToken
         val url = "${authProperties.url}/projects/$projectCode/users/$userId/verfiy?access_token=$accessTokenNew"
         logger.info("the verifyUserProjectPermission url is:$url")
