@@ -110,6 +110,6 @@ spec:
               {{- if .Values.kubeConfig.useKubeConfig}}
               - key: kubeConfig.yaml
                 path: kubeConfig.yaml
+              {{- end}}
       {{- end}}
-    {{- end}}
 {{- end -}}
