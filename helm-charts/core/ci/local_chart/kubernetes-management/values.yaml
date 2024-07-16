@@ -150,8 +150,8 @@ kubernetesManager:
       rsaPrivateKey: |
   volumeMount:
       # 流水线构建工作空间和agent日志在容器内的挂载点
-      dataPath: /data/devops/workspace
-      logPath: /data/devops/logs
+      dataPath: /data/landun/workspace
+      logPath: /data/landun/logs
 dockerInit:
   # 是否使用当前chart的 dockerinit.sh
   useDockerInit: true

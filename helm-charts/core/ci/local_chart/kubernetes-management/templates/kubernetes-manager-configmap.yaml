@@ -82,7 +82,7 @@ data:
       volumeMount:
         dataPath: {{ .Values.kubernetesManager.volumeMount.dataPath }}
         logPath: {{ .Values.kubernetesManager.volumeMount.logPath }}
-        builderConfigMapPath: /data/devops/config
+        builderConfigMapPath: /data/landun/config
         cfs:
           path: /data/bkdevops/apps
           readOnly: true
@@ -111,13 +111,13 @@ data:
                 path: init.sh
           hostPath:
             # 数据盘
-            dataHostDir: /data/devops/workspace
+            dataHostDir: /data/landun/workspace
             # 日志盘
-            logsHostDir: /data/devops/logs
+            logsHostDir: /data/landun/logs
         volumeMount:
-          dataPath: /data/devops/workspace
-          logPath: /data/devops/logs
-          builderConfigMapPath: /data/devops/config
+          dataPath: /data/landun/workspace
+          logPath: /data/landun/logs
+          builderConfigMapPath: /data/landun/config
     buildAndPushImage:
       image: {{ .Values.kubernetesManager.buildAndPushImage.image }}
       # 拉取kaniko需要的凭据，如果不填视为没有
