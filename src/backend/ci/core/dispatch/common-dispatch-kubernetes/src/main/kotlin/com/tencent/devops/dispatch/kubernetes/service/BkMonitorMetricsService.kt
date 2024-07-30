@@ -77,7 +77,7 @@ class BkMonitorMetricsService @Autowired constructor(
         val promql = "sum(bkmonitor:container_memory_rss{bcs_cluster_id=\"BCS-K8S-26680\",namespace=\"manager-base\"," +
                 "pod_name=\"$podName\"})"
 
-        val data = searchMetrics(projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
+        val data = searchMetrics(userId, projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
 
         val resultData = mutableMapOf<String, List<Map<String, Any>>>()
         val res = data?.map { d ->
@@ -110,7 +110,7 @@ class BkMonitorMetricsService @Autowired constructor(
         val promql = "sum(rate(bkmonitor:container_cpu_usage_seconds_total{bcs_cluster_id=\"BCS-K8S-26680\"," +
                 "namespace=\"manager-base\",pod_name=\"$podName\"}[2m]))"
 
-        val data = searchMetrics(projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
+        val data = searchMetrics(userId, projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
 
         val resultData = mutableMapOf<String, List<Map<String, Any>>>()
         val res = data?.map { d ->
@@ -248,13 +248,14 @@ class BkMonitorMetricsService @Autowired constructor(
     }
 
     private fun searchMetrics(
+        userId: String,
         projectId: String,
         promql: String,
         startTime: Long,
         endTime: Long
     ): List<BkMonitorRespDataSeries>? {
         val methodStartTime = System.currentTimeMillis()
-        val bizId = getBizId(projectId) ?: return null
+        val bizId = getBizId(userId, projectId) ?: return null
         val body = BkMonitorRequestBody(
             bkBizId = bizId.inv() + 1,
             queryConfigs = listOf(
@@ -280,8 +281,8 @@ class BkMonitorMetricsService @Autowired constructor(
         return data
     }
 
-    private fun getBizId(projectId: String): Long? {
-        return client.get(ServiceMonitorSpaceResource::class).getMonitorSpaceBizId("", projectId).data?.toLong()
+    private fun getBizId(userId: String, projectId: String): Long? {
+        return client.get(ServiceMonitorSpaceResource::class).getMonitorSpaceBizId(userId, projectId).data?.toLong()
     }
 
     private fun requestBkMonitor(body: Any): BkMonitorRespData? {
