@@ -274,6 +274,7 @@ class BkMonitorMetricsService @Autowired constructor(
             downSampleRange = "2s"
         )
 
+        logger.info("searchMetrics: $body")
         val data = requestBkMonitor(body)?.series
 
         logger.info("searchMetrics $promql cost ${System.currentTimeMillis() - methodStartTime}ms, data: $data")
