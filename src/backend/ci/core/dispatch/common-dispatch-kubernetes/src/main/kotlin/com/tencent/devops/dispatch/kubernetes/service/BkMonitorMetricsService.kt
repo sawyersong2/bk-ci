@@ -257,7 +257,7 @@ class BkMonitorMetricsService @Autowired constructor(
         val methodStartTime = System.currentTimeMillis()
         val bizId = getBizId(userId, projectId) ?: return null
         val body = BkMonitorRequestBody(
-            bkBizId = bizId.inv() + 1,
+            bkBizId = -4238528,
             queryConfigs = listOf(
                 BkMonitorRequestBodyQueryConfigs(
                     alias = "a",
