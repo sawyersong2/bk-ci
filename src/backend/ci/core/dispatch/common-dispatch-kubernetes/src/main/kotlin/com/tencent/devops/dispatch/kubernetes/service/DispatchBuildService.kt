@@ -66,6 +66,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @Service
 class DispatchBuildService @Autowired constructor(
@@ -79,7 +81,8 @@ class DispatchBuildService @Autowired constructor(
     private val performanceOptionsDao: PerformanceOptionsDao,
     private val dispatchKubernetesBuildDao: DispatchKubernetesBuildDao,
     private val dispatchKubernetesBuildHisDao: DispatchKubernetesBuildHisDao,
-    private val dockerRoutingSdkService: DockerRoutingSdkService
+    private val dockerRoutingSdkService: DockerRoutingSdkService,
+    private val bkMonitorMetricsService: BkMonitorMetricsService
 ) {
 
     companion object {
@@ -619,8 +622,8 @@ class DispatchBuildService @Autowired constructor(
                 return
             }
 
-            builderNameList.filter { it.second != null }.forEach { (vmSeqId, builderName) ->
-                stopBuilder(dockerRoutingType, vmSeqId, builderName, event)
+            builderNameList.filter { it.second != null }.forEach { (vmSeqId, builderName, createTime) ->
+                stopBuilder(dockerRoutingType, vmSeqId, builderName, event, createTime)
             }
 
             val builderPoolList = builderPoolNoDao.getBaseBuildLastPoolNo(
@@ -653,6 +656,9 @@ class DispatchBuildService @Autowired constructor(
                 vmSeqId = vmSeqId,
                 executeCount = executeCount ?: 1
             )
+
+            // 测试负载采集
+
         }
     }
 
@@ -660,7 +666,8 @@ class DispatchBuildService @Autowired constructor(
         dockerRoutingType: DockerRoutingType,
         vmSeqId: String,
         builderName: String?,
-        event: PipelineAgentShutdownEvent
+        event: PipelineAgentShutdownEvent,
+        startTime: LocalDateTime
     ) {
         val dispatchBuild = containerServiceFactory.load(event.projectId)
         with(event) {
@@ -692,6 +699,21 @@ class DispatchBuildService @Autowired constructor(
                     e
                 )
             }
+
+            bkMonitorMetricsService.queryCpuUsageMetrics(
+                userId = event.userId,
+                projectId = event.projectId,
+                podName = "kubernetes-manager-69cb94b66c-nxq52",
+                startTime = startTime.plusSeconds(10).toEpochSecond(ZoneOffset.UTC),
+                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+            )
+            bkMonitorMetricsService.queryMemoryUsageMetrics(
+                userId = event.userId,
+                projectId = event.projectId,
+                podName = "kubernetes-manager-69cb94b66c-nxq52",
+                startTime = startTime.plusSeconds(10).toEpochSecond(ZoneOffset.UTC),
+                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+            )
         }
     }
 

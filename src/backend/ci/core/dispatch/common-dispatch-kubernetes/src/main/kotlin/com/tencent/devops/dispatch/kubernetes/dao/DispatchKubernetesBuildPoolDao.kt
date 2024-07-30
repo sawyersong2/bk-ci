@@ -72,8 +72,8 @@ class DispatchKubernetesBuildPoolDao {
         buildId: String,
         vmSeqId: String?,
         executeCount: Int
-    ): List<Pair<String, String?>> {
-        val result = mutableListOf<Pair<String, String?>>()
+    ): List<Triple<String, String?, LocalDateTime>> {
+        val result = mutableListOf<Triple<String, String?, LocalDateTime>>()
         with(TDispatchKubernetesBuildPool.T_DISPATCH_KUBERNETES_BUILD_POOL) {
             if (null == vmSeqId) {
                 val records = dslContext.selectFrom(this)
@@ -82,7 +82,7 @@ class DispatchKubernetesBuildPoolDao {
                     .and(EXECUTE_COUNT.eq(executeCount))
                     .fetch()
                 records.forEach {
-                    result.add(Pair(it.vmSeqId, it.containerName))
+                    result.add(Triple(it.vmSeqId, it.containerName, it.createTime))
                 }
             } else {
                 val record = dslContext.selectFrom(this)
@@ -91,7 +91,7 @@ class DispatchKubernetesBuildPoolDao {
                     .and(EXECUTE_COUNT.eq(executeCount))
                     .and(VM_SEQ_ID.eq(vmSeqId))
                     .fetchOne()
-                result.add(Pair(vmSeqId, record?.containerName))
+                result.add(Triple(vmSeqId, record?.containerName, record?.createTime ?: LocalDateTime.now()))
             }
         }
         return result
