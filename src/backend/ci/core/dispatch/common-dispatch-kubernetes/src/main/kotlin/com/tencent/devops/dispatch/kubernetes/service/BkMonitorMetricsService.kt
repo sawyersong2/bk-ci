@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.tencent.devops.auth.api.service.ServiceMonitorSpaceResource
 import com.tencent.devops.common.api.exception.RemoteServiceException
+import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.api.util.OkhttpUtils
 import com.tencent.devops.common.client.Client
 import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRequestBody
@@ -274,10 +275,9 @@ class BkMonitorMetricsService @Autowired constructor(
             downSampleRange = "2s"
         )
 
-        logger.info("searchMetrics: $body")
         val data = requestBkMonitor(body)?.series
 
-        logger.info("searchMetrics $promql cost ${System.currentTimeMillis() - methodStartTime}ms, data: $data")
+        logger.info("searchMetrics ${JsonUtil.toJson(body)} cost ${System.currentTimeMillis() - methodStartTime}ms, data: $data")
 
         return data
     }
