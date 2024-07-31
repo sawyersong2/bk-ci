@@ -269,8 +269,8 @@ class BkMonitorMetricsService @Autowired constructor(
                 )
             ),
             expression = "",
-            startTime = startTime,
-            endTime = endTime,
+            startTime = 1722390808,
+            endTime = 1722394408,
             slimit = 500,
             downSampleRange = "2s"
         )
