@@ -207,7 +207,7 @@ func watchBuilderTaskPodCreateOrStart(event watch.Event, pod *corev1.Pod, taskId
 					}
 					defer redis.UnLock(key)
 
-					OkTask(taskId)
+					OkTaskWithPodName(taskId, pod.Name)
 
 					// mysql中保存分配至节点成功的构建机最近三次节点信息，用来做下一次调度的依据
 					if builderName == "" {

@@ -149,6 +149,7 @@ kubernetesManager:
         key: Devops-Token
         value: landun
       rsaPrivateKey: ""
+    taskCallbackUrl: ""
   volumeMount:
       # 流水线构建工作空间和agent日志在容器内的挂载点
       dataPath: /data/landun/workspace

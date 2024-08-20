@@ -1,6 +1,7 @@
 package task
 
 import (
+	"disaptch-k8s-manager/pkg/callback"
 	"disaptch-k8s-manager/pkg/db/mysql"
 	"disaptch-k8s-manager/pkg/logs"
 	"disaptch-k8s-manager/pkg/types"
@@ -12,10 +13,16 @@ func InitTask() {
 }
 
 func OkTask(taskId string) {
+	OkTaskWithPodName(taskId, "")
+}
+
+func OkTaskWithPodName(taskId string, podName string) {
 	err := mysql.UpdateTask(taskId, types.TaskSucceeded, "")
 	if err != nil {
 		logs.Errorf("save OkTask %s error %s", taskId, err.Error())
 	}
+
+	callback.TaskCallback(taskId, types.TaskSucceeded, podName)
 }
 
 func OkTaskWithMessage(taskId string, message string) {

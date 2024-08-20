@@ -25,36 +25,21 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.tencent.devops.dispatch.kubernetes.service
+package com.tencent.devops.dispatch.kubernetes.resource.external
 
-import com.tencent.devops.common.api.util.JsonUtil
+import com.tencent.devops.common.api.pojo.Result
+import com.tencent.devops.common.web.RestResource
+import com.tencent.devops.dispatch.kubernetes.api.external.ExternalKubeManagerResource
 import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackInfo
-import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildStatusResp
-import com.tencent.devops.dispatch.kubernetes.service.factory.ContainerServiceFactory
-import org.slf4j.LoggerFactory
+import com.tencent.devops.dispatch.kubernetes.service.DispatchBaseTaskService
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.stereotype.Service
 
-@Service
-class DispatchBaseTaskService @Autowired constructor(
-    private val containerServiceFactory: ContainerServiceFactory
-) {
+@RestResource
+class ExternalKubeManagerResourceImpl @Autowired constructor(
+    private val dispatchBaseTaskService: DispatchBaseTaskService
+) : ExternalKubeManagerResource {
 
-    fun getTaskStatus(
-        userId: String,
-        projectId: String,
-        buildId: String,
-        taskId: String
-    ): DispatchBuildStatusResp {
-        return containerServiceFactory.load(projectId).getTaskStatus(userId, taskId)
-    }
-
-    fun taskCallback(taskCallbackInfo: TaskCallbackInfo): Boolean {
-        logger.info("-- taskCallback: ${JsonUtil.toJson(taskCallbackInfo)}")
-        return true
-    }
-
-    companion object {
-        private val logger = LoggerFactory.getLogger(DispatchBaseTaskService::class.java)
+    override fun taskCallback(taskCallbackInfo: TaskCallbackInfo): Result<Boolean> {
+        return Result(dispatchBaseTaskService.taskCallback(taskCallbackInfo))
     }
 }

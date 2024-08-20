@@ -134,6 +134,7 @@ data:
           value: {{ .Values.kubernetesManager.apiserver.auth.apiToken.value }}
         rsaPrivateKey: |
           {{- .Values.kubernetesManager.apiserver.auth.rsaPrivateKey | nindent 10 }}
+      taskCallbackUrl: {{ .Values.kubernetesManager.apiserver.taskCallbackUrl }}
     docker:
       enable: {{ .Values.kubernetesManager.docker.enable }}
 

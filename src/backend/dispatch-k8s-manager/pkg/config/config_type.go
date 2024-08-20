@@ -125,7 +125,8 @@ type Registry struct {
 }
 
 type ApiServer struct {
-	Auth Auth `json:"auth"`
+	Auth            Auth   `json:"auth"`
+	TaskCallbackUrl string `json:"taskCallbackUrl"`
 }
 
 type Auth struct {
