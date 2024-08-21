@@ -9,7 +9,7 @@ data class TaskCallbackInfo(
 enum class CallbackTaskStatus {
     waiting,
     running,
-    successed,
+    succeeded,
     failed,
     abort
 }
