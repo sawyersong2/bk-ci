@@ -12,23 +12,23 @@ import (
 )
 
 func TaskCallback(taskId string, taskStatus types.TaskState, podName string) {
-	url := fmt.Sprintf("http://%s/api/external/kube-manager/task/callback", config.Config.ApiServer.TaskCallbackUrl)
+	url := fmt.Sprintf("%s/api/external/kube-manager/task/callback", config.Config.ApiServer.TaskCallbackUrl)
 	taskInfo := TaskCallbackInfo{TaskId: taskId, PodName: podName, Status: taskStatus}
 	taskInfoJsonStr, err := json.Marshal(taskInfo)
-	if err != nil {
-		// 处理错误
-	}
-
-	contentType := "application/json"
-	resp, err := http.Post(url, contentType, bytes.NewBuffer(taskInfoJsonStr))
 	if err != nil {
 		logs.Error(fmt.Sprintf("%s Format taskCallbackInfo error. %s", taskId, err))
 		return
 	}
+
+	logs.Info(fmt.Sprintf("%s TaskCallback taskInfo: %s", taskId, taskInfoJsonStr))
+	contentType := "application/json"
+	resp, err := http.Post(url, contentType, bytes.NewBuffer(taskInfoJsonStr))
+	if err != nil {
+		logs.Error(fmt.Sprintf("%s TaskCallback error. %s", taskId, err))
+		return
+	}
 	defer resp.Body.Close()
 
-	fmt.Println(resp.StatusCode)
-	fmt.Println(resp.Header)
 	body, err := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		logs.Error(fmt.Sprintf("%s TaskCallback error. %s", taskId, err))
