@@ -1,7 +1,7 @@
 package com.tencent.devops.dispatch.kubernetes.pojo
 
 data class TaskCallbackInfo(
-    val taskUid: String,
+    val taskId: String,
     val podName: String,
     val status: CallbackTaskStatus
 )
