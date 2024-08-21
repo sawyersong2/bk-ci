@@ -50,7 +50,7 @@ class DispatchBaseTaskService @Autowired constructor(
     }
 
     fun taskCallback(taskCallbackInfo: TaskCallbackInfo): Boolean {
-        logger.info("-- taskCallback: ${JsonUtil.toJson(taskCallbackInfo)}")
+        logger.info("--- taskCallback: ${JsonUtil.toJson(taskCallbackInfo)}")
         return true
     }
 
