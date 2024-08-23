@@ -646,17 +646,17 @@ class DispatchBuildService @Autowired constructor(
                 executeCount = executeCount ?: 1
             )
 
-            calculateWorkloadUsage(event)
+            calculateWorkloadUsage(dockerRoutingType, event)
         }
     }
 
-    private fun calculateWorkloadUsage(event: PipelineAgentShutdownEvent) {
-        dispatchKubernetesBuildHisDao.getLatestBuildHistory(
+    private fun calculateWorkloadUsage(dockerRoutingType: DockerRoutingType, event: PipelineAgentShutdownEvent) {
+        dispatchKubernetesBuildHisDao.get(
             dslContext = dslContext,
-            dispatchType = event.buildId,
+            buildId = event.buildId,
             vmSeqId = event.vmSeqId ?: "",
-            pipelineId = event.pipelineId,
-        )?.let {
+            dispatchType = dockerRoutingType.name,
+        ).first()?.let {
             bkMonitorMetricsService.queryCpuUsageMetrics(
                 userId = event.userId,
                 projectId = event.projectId,
