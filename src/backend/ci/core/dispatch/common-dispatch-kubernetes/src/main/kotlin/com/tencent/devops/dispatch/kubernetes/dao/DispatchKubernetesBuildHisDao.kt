@@ -130,17 +130,19 @@ class DispatchKubernetesBuildHisDao {
         }
     }
 
-    fun updateBuilderName(
+    fun updateWorkloadName(
         dslContext: DSLContext,
         dispatchType: String,
         buildId: String,
         vmSeqId: String,
+        executeCount: Int,
         builderName: String,
-        executeCount: Int
+        podName: String
     ) {
         with(TDispatchKubernetesBuildHistory.T_DISPATCH_KUBERNETES_BUILD_HISTORY) {
             dslContext.update(this)
                 .set(CONTAINER_NAME, builderName)
+                .set(POD_NAME, podName)
                 .where(DISPATCH_TYPE.eq(dispatchType))
                 .and(BUILD_ID.eq(buildId))
                 .and(VM_SEQ_ID.eq(vmSeqId))

@@ -31,11 +31,10 @@ package com.tencent.devops.dispatch.kubernetes.service
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.dispatch.kubernetes.pojo.BK_KUBERNETES_TASK_EXECUTE_TIMEOUT
-import com.tencent.devops.dispatch.kubernetes.pojo.CallbackTaskStatus
+import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackAction
 import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackInfo
+import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackStatus
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildStatusResp
-import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildTaskStatus
-import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildTaskStatusEnum
 import com.tencent.devops.dispatch.kubernetes.service.factory.ContainerServiceFactory
 import com.tencent.devops.dispatch.kubernetes.utils.TaskCallbackRedisUtils
 import org.slf4j.LoggerFactory
@@ -58,19 +57,22 @@ class DispatchBaseTaskService @Autowired constructor(
     }
 
     fun taskCallback(taskCallbackInfo: TaskCallbackInfo): Boolean {
-        logger.info("--- taskCallback: ${JsonUtil.toJson(taskCallbackInfo)}")
+        logger.info("TaskCallback: ${JsonUtil.toJson(taskCallbackInfo)}")
         taskCallbackRedisUtils.refreshTaskCallbackInfo(taskCallbackInfo)
         return true
     }
 
-    fun waitTaskFinish(userId: String, taskId: String): DispatchBuildTaskStatus {
+    fun waitTaskFinish(userId: String, taskId: String): TaskCallbackInfo {
         val startTime = System.currentTimeMillis()
         loop@ while (true) {
             if (System.currentTimeMillis() - startTime > 10 * 60 * 1000) {
                 logger.error("$taskId kubernetes task timeout")
-                return DispatchBuildTaskStatus(
-                    status = DispatchBuildTaskStatusEnum.TIME_OUT,
-                    msg = "${I18nUtil.getCodeLanMessage(BK_KUBERNETES_TASK_EXECUTE_TIMEOUT)}（10min）"
+                return TaskCallbackInfo(
+                    status = TaskCallbackStatus.timeout,
+                    podName = "",
+                    message = "${I18nUtil.getCodeLanMessage(BK_KUBERNETES_TASK_EXECUTE_TIMEOUT)}（10min）",
+                    action = TaskCallbackAction.unkown,
+                    taskId = taskId
                 )
             }
             Thread.sleep(1 * 1000)
@@ -80,17 +82,11 @@ class DispatchBaseTaskService @Autowired constructor(
             if (taskCallbackInfo?.status != null) {
                 logger.info("Loop task taskId: $taskId, status: ${JsonUtil.toJson(taskCallbackInfo)}")
                 taskCallbackRedisUtils.deleteTaskCallbackInfo(taskId)
-                return if (taskCallbackInfo.status == CallbackTaskStatus.succeeded) {
-                    DispatchBuildTaskStatus(
-                        DispatchBuildTaskStatusEnum.SUCCEEDED,
-                        JsonUtil.toJson(taskCallbackInfo)
-                    )
-                } else {
-                    DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.FAILED, taskCallbackInfo.message)
-                }
+                return taskCallbackInfo
             }
         }
     }
+
 
     companion object {
         private val logger = LoggerFactory.getLogger(DispatchBaseTaskService::class.java)

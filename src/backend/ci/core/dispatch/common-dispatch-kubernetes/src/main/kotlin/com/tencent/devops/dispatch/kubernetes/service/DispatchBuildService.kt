@@ -43,20 +43,12 @@ import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildDao
 import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildHisDao
 import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildPoolDao
 import com.tencent.devops.dispatch.kubernetes.dao.PerformanceOptionsDao
-import com.tencent.devops.dispatch.kubernetes.pojo.BK_BUILD_MACHINE_CREATION_FAILED_REFERENCE
-import com.tencent.devops.dispatch.kubernetes.pojo.BK_BUILD_MACHINE_STARTUP_FAILED
-import com.tencent.devops.dispatch.kubernetes.pojo.BK_BUILD_MACHINE_START_SUCCESS_WAIT_AGENT_START
-import com.tencent.devops.dispatch.kubernetes.pojo.BK_INTERFACE_REQUEST_TIMEOUT
-import com.tencent.devops.dispatch.kubernetes.pojo.BK_MACHINE_BUILD_COMPLETED_WAITING_FOR_STARTUP
-import com.tencent.devops.dispatch.kubernetes.pojo.Credential
-import com.tencent.devops.dispatch.kubernetes.pojo.DispatchBuilderStatus
-import com.tencent.devops.dispatch.kubernetes.pojo.Pool
+import com.tencent.devops.dispatch.kubernetes.pojo.*
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildImageReq
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchTaskResp
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildBuilderStatus
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildOperateBuilderParams
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildOperateBuilderType
-import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildTaskStatusEnum
 import com.tencent.devops.dispatch.kubernetes.pojo.common.ErrorCodeEnum
 import com.tencent.devops.dispatch.kubernetes.service.factory.ContainerServiceFactory
 import com.tencent.devops.dispatch.kubernetes.utils.PipelineBuilderLock
@@ -389,7 +381,7 @@ class DispatchBuildService @Autowired constructor(
             disk = threadLocalDisk.get()
         )
 
-        checkStartTask(poolNo, taskId, builderName, dockerRoutingType, projectId, dispatchMessage)
+        dealWithTask(poolNo, taskId, builderName, dockerRoutingType, projectId, dispatchMessage)
     }
 
     private fun startBuilder(
@@ -408,7 +400,7 @@ class DispatchBuildService @Autowired constructor(
             disk = threadLocalDisk.get()
         )
 
-        checkStartTask(poolNo, taskId, builderName, dockerRoutingType, projectId, dispatchMessage)
+        dealWithTask(poolNo, taskId, builderName, dockerRoutingType, projectId, dispatchMessage)
     }
 
     fun buildAndPushImage(
@@ -421,7 +413,7 @@ class DispatchBuildService @Autowired constructor(
             .buildAndPushImage(userId, projectId, buildId, dispatchBuildImageReq)
     }
 
-    private fun checkStartTask(
+    private fun dealWithTask(
         poolNo: Int,
         taskId: String,
         builderName: String,
@@ -451,10 +443,9 @@ class DispatchBuildService @Autowired constructor(
                 poolNo = poolNo
             )
 
-            val (taskStatus, failedMsg) = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
+            val taskCallbackInfo = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
 
-            if (taskStatus == DispatchBuildTaskStatusEnum.SUCCEEDED) {
-                // 启动成功
+            if (taskCallbackInfo.status == TaskCallbackStatus.succeeded) {
                 logger.info(
                     "buildId: $buildId,vmSeqId: $vmSeqId,executeCount: $executeCount,poolNo: $poolNo " +
                             "start ${dockerRoutingType.name} vm success, wait for agent startup..."
@@ -483,13 +474,14 @@ class DispatchBuildService @Autowired constructor(
                 )
 
                 // 更新历史表中builderName
-                dispatchKubernetesBuildHisDao.updateBuilderName(
+                dispatchKubernetesBuildHisDao.updateWorkloadName(
                     dslContext = dslContext,
                     dispatchType = dockerRoutingType.name,
                     buildId = buildId,
                     vmSeqId = vmSeqId,
+                    executeCount = executeCount ?: 1,
                     builderName = builderName,
-                    executeCount = executeCount ?: 1
+                    podName = taskCallbackInfo.podName
                 )
             } else {
                 clearExceptionBuilder(dockerRoutingType, builderName, projectId, dispatchMessage)
@@ -502,13 +494,14 @@ class DispatchBuildService @Autowired constructor(
                     poolNo = poolNo,
                     status = DispatchBuilderStatus.IDLE.status
                 )
-                dispatchKubernetesBuildHisDao.updateBuilderName(
+                dispatchKubernetesBuildHisDao.updateWorkloadName(
                     dslContext = dslContext,
                     dispatchType = dockerRoutingType.name,
                     buildId = buildId,
                     vmSeqId = vmSeqId,
+                    executeCount = executeCount ?: 1,
                     builderName = builderName,
-                    executeCount = executeCount ?: 1
+                    podName = taskCallbackInfo.podName
                 )
                 throw BuildFailureException(
                     ErrorCodeEnum.BASE_START_VM_ERROR.errorType,
@@ -517,7 +510,7 @@ class DispatchBuildService @Autowired constructor(
                     dispatchBuild.getLog().troubleShooting + MessageUtil.getMessageByLocale(
                         BK_BUILD_MACHINE_STARTUP_FAILED,
                         I18nUtil.getLanguage(),
-                        arrayOf(failedMsg ?: "")
+                        arrayOf(taskCallbackInfo.message)
                     )
                 )
             }
@@ -603,7 +596,7 @@ class DispatchBuildService @Autowired constructor(
         // 有可能出现容器平台返回容器状态running了，但是其实流水线任务早已经执行完了，
         // 导致shutdown消息先收到而redis和db还没有设置的情况，因此扔回队列，sleep等待30秒重新触发
         with(event) {
-            val builderNameList = builderPoolNoDao.getBaseBuildLastBuilder(
+            val buildPoolRecordList = builderPoolNoDao.getBaseBuildLastBuildPool(
                 dslContext = dslContext,
                 dispatchType = dockerRoutingType.name,
                 buildId = buildId,
@@ -611,7 +604,7 @@ class DispatchBuildService @Autowired constructor(
                 executeCount = executeCount ?: 1
             )
 
-            if (builderNameList.none { it.second != null } && retryTime <= 3) {
+            if (buildPoolRecordList.none { it.containerName != null } && retryTime <= 3) {
                 logger.info(
                     "[$buildId]|[$vmSeqId]|[$executeCount] shutdown no builderName, " +
                         "sleep 10s and retry $retryTime. "
@@ -623,30 +616,25 @@ class DispatchBuildService @Autowired constructor(
                 return
             }
 
-            builderNameList.filter { it.second != null }.forEach { (vmSeqId, builderName, createTime) ->
-                stopBuilder(dockerRoutingType, vmSeqId, builderName, event, createTime)
-            }
+            buildPoolRecordList.forEach {
+                if (it.containerName != null) {
+                    stopBuilder(dockerRoutingType, it.vmSeqId, it.containerName, event, it.createTime)
+                }
 
-            val builderPoolList = builderPoolNoDao.getBaseBuildLastPoolNo(
-                dslContext = dslContext,
-                dispatchType = dockerRoutingType.name,
-                buildId = buildId,
-                vmSeqId = vmSeqId,
-                executeCount = executeCount ?: 1
-            )
-            builderPoolList.filter { it.second != null }.forEach { (vmSeqId, poolNo) ->
-                logger.info(
-                    "[$buildId]|[$vmSeqId]|[$executeCount] update status in db,vmSeqId: $vmSeqId, " +
-                        "poolNo:$poolNo"
-                )
-                dispatchKubernetesBuildDao.updateStatus(
-                    dslContext = dslContext,
-                    dispatchType = dockerRoutingType.name,
-                    pipelineId = pipelineId,
-                    vmSeqId = vmSeqId,
-                    poolNo = poolNo!!.toInt(),
-                    status = DispatchBuilderStatus.IDLE.status
-                )
+                if (it.poolNo != null) {
+                    logger.info(
+                        "[$buildId]|[$vmSeqId]|[$executeCount] update status in db,vmSeqId: $vmSeqId, " +
+                            "poolNo:$it.poolNo"
+                    )
+                    dispatchKubernetesBuildDao.updateStatus(
+                        dslContext = dslContext,
+                        dispatchType = dockerRoutingType.name,
+                        pipelineId = pipelineId,
+                        vmSeqId = vmSeqId,
+                        poolNo = it.poolNo!!.toInt(),
+                        status = DispatchBuilderStatus.IDLE.status
+                    )
+                }
             }
 
             logger.info("[$buildId]|[$vmSeqId]|[$executeCount] delete buildBuilderPoolNo.")
@@ -658,8 +646,31 @@ class DispatchBuildService @Autowired constructor(
                 executeCount = executeCount ?: 1
             )
 
-            // 测试负载采集
+            calculateWorkloadUsage(event)
+        }
+    }
 
+    private fun calculateWorkloadUsage(event: PipelineAgentShutdownEvent) {
+        dispatchKubernetesBuildHisDao.getLatestBuildHistory(
+            dslContext = dslContext,
+            dispatchType = event.buildId,
+            vmSeqId = event.vmSeqId ?: "",
+            pipelineId = event.pipelineId,
+        )?.let {
+            bkMonitorMetricsService.queryCpuUsageMetrics(
+                userId = event.userId,
+                projectId = event.projectId,
+                podName = it.podName,
+                startTime = it.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.UTC),
+                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+            )
+            bkMonitorMetricsService.queryMemoryUsageMetrics(
+                userId = event.userId,
+                projectId = event.projectId,
+                podName = it.podName,
+                startTime = it.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.UTC),
+                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+            )
         }
     }
 
@@ -684,13 +695,13 @@ class DispatchBuildService @Autowired constructor(
                     builderName = builderName!!,
                     param = DispatchBuildOperateBuilderParams(DispatchBuildOperateBuilderType.STOP, null)
                 )
-                val (taskStatus, failMsg) = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
-                if (taskStatus == DispatchBuildTaskStatusEnum.SUCCEEDED) {
+                val taskCallbackInfo = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
+                if (taskCallbackInfo.status == TaskCallbackStatus.succeeded) {
                     logger.info("[$buildId]|[$vmSeqId]|[$executeCount] stop ${dockerRoutingType.name} builder success.")
                 } else {
                     logger.info(
                         "[$buildId]|[$vmSeqId]|[$executeCount] stop ${dockerRoutingType.name} builder failed, " +
-                            "msg: $failMsg"
+                            "msg: ${taskCallbackInfo.message}"
                     )
                 }
             } catch (e: Exception) {
@@ -700,21 +711,6 @@ class DispatchBuildService @Autowired constructor(
                     e
                 )
             }
-
-            bkMonitorMetricsService.queryCpuUsageMetrics(
-                userId = event.userId,
-                projectId = event.projectId,
-                podName = "kubernetes-manager-69cb94b66c-nxq52",
-                startTime = startTime.plusSeconds(10).toEpochSecond(ZoneOffset.UTC),
-                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-            )
-            bkMonitorMetricsService.queryMemoryUsageMetrics(
-                userId = event.userId,
-                projectId = event.projectId,
-                podName = "kubernetes-manager-69cb94b66c-nxq52",
-                startTime = startTime.plusSeconds(10).toEpochSecond(ZoneOffset.UTC),
-                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
-            )
         }
     }
 

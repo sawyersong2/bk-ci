@@ -28,6 +28,7 @@
 package com.tencent.devops.dispatch.kubernetes.dao
 
 import com.tencent.devops.model.dispatch.kubernetes.tables.TDispatchKubernetesBuildPool
+import com.tencent.devops.model.dispatch.kubernetes.tables.records.TDispatchKubernetesBuildPoolRecord
 import org.jooq.DSLContext
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
@@ -66,35 +67,32 @@ class DispatchKubernetesBuildPoolDao {
         }
     }
 
-    fun getBaseBuildLastBuilder(
+    fun getBaseBuildLastBuildPool(
         dslContext: DSLContext,
         dispatchType: String,
         buildId: String,
         vmSeqId: String?,
         executeCount: Int
-    ): List<Triple<String, String?, LocalDateTime>> {
-        val result = mutableListOf<Triple<String, String?, LocalDateTime>>()
+    ): List<TDispatchKubernetesBuildPoolRecord> {
         with(TDispatchKubernetesBuildPool.T_DISPATCH_KUBERNETES_BUILD_POOL) {
-            if (null == vmSeqId) {
-                val records = dslContext.selectFrom(this)
+            return if (null == vmSeqId) {
+                dslContext.selectFrom(this)
                     .where(DISPATCH_TYPE.eq(dispatchType))
                     .and(BUILD_ID.eq(buildId))
                     .and(EXECUTE_COUNT.eq(executeCount))
                     .fetch()
-                records.forEach {
-                    result.add(Triple(it.vmSeqId, it.containerName, it.createTime))
-                }
+                    .toList()
             } else {
-                val record = dslContext.selectFrom(this)
-                    .where(DISPATCH_TYPE.eq(dispatchType))
-                    .and(BUILD_ID.eq(buildId))
-                    .and(EXECUTE_COUNT.eq(executeCount))
-                    .and(VM_SEQ_ID.eq(vmSeqId))
-                    .fetchOne()
-                result.add(Triple(vmSeqId, record?.containerName, record?.createTime ?: LocalDateTime.now()))
+                listOfNotNull(
+                    dslContext.selectFrom(this)
+                        .where(DISPATCH_TYPE.eq(dispatchType))
+                        .and(BUILD_ID.eq(buildId))
+                        .and(EXECUTE_COUNT.eq(executeCount))
+                        .and(VM_SEQ_ID.eq(vmSeqId))
+                        .fetchOne()
+                )
             }
         }
-        return result
     }
 
     fun getBaseBuildLastPoolNo(

@@ -290,7 +290,7 @@ class KubernetesContainerService @Autowired constructor(
                         ENV_KEY_GATEWAY to dispatchMessages.gateway,
                         "TERM" to "xterm-256color",
                         SLAVE_ENVIRONMENT to "Kubernetes",
-                        ENV_JOB_BUILD_TYPE to (dispatchType?.buildType()?.name ?: BuildType.KUBERNETES.name),
+                        ENV_JOB_BUILD_TYPE to (dispatchType.buildType().name ?: BuildType.KUBERNETES.name),
                         ENV_DEFAULT_LOCALE_LANGUAGE to commonConfig.devopsDefaultLocaleLanguage
                     ),
                     command = listOf("/bin/sh", entrypoint)
@@ -302,9 +302,9 @@ class KubernetesContainerService @Autowired constructor(
     override fun waitTaskFinish(userId: String, taskId: String, needProxy: Boolean): DispatchBuildTaskStatus {
         val startResult = kubernetesTaskClient.waitTaskFinish(userId, taskId, needProxy)
         return if (startResult.first == TaskStatusEnum.SUCCEEDED) {
-            DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.SUCCEEDED, startResult.second)
+            DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.SUCCEEDED, "", startResult.second)
         } else {
-            DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.FAILED, startResult.second)
+            DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.FAILED, "", startResult.second)
         }
     }
 

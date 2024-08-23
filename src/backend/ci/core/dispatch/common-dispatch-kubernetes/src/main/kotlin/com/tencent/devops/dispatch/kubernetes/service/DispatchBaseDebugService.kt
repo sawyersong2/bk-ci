@@ -45,6 +45,7 @@ import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildHisDao
 import com.tencent.devops.dispatch.kubernetes.pojo.BK_BUILD_MACHINE_STARTUP_FAILED
 import com.tencent.devops.dispatch.kubernetes.pojo.BK_CONTAINER_STATUS_EXCEPTION
 import com.tencent.devops.dispatch.kubernetes.pojo.BK_NO_CONTAINER_IS_READY_DEBUG
+import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackStatus
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DebugResponse
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildBuilderStatus
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildOperateBuilderParams
@@ -253,12 +254,12 @@ class DispatchBaseDebugService @Autowired constructor(
                         builderName = debugBuilderName,
                         param = DispatchBuildOperateBuilderParams(DispatchBuildOperateBuilderType.STOP, null)
                     )
-                    val opResult = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
-                    if (opResult.status == DispatchBuildTaskStatusEnum.SUCCEEDED) {
+                    val taskCallbackInfo = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
+                    if (taskCallbackInfo.status == TaskCallbackStatus.succeeded) {
                         logger.info("stop debug $debugBuilderName success.")
                     } else {
                         // 停不掉，尝试删除
-                        logger.info("stop debug $debugBuilderName failed, msg: ${opResult.msg}")
+                        logger.info("stop debug $debugBuilderName failed, msg: ${taskCallbackInfo.message}")
                         logger.info("stop debug $debugBuilderName failed, try to delete it.")
                         containerServiceFactory.load(projectId).operateBuilder(
                             buildId = "",
@@ -314,15 +315,15 @@ class DispatchBaseDebugService @Autowired constructor(
         )
 
         logger.info("$userId start builder, taskId:($taskId)")
-        val startResult = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
-        if (startResult.status == DispatchBuildTaskStatusEnum.SUCCEEDED) {
+        val taskCallbackInfo = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
+        if (taskCallbackInfo.status == TaskCallbackStatus.succeeded) {
             // 启动成功
             logger.info("$userId start ${dockerRoutingType.name} builder success")
         } else {
-            logger.error("$userId start ${dockerRoutingType.name} builder failed, msg: ${startResult.msg}")
+            logger.error("$userId start ${dockerRoutingType.name} builder failed, msg: ${taskCallbackInfo.message}")
             throw ErrorCodeException(
                 errorCode = BK_BUILD_MACHINE_STARTUP_FAILED,
-                params = arrayOf(startResult.msg ?: "")
+                params = arrayOf(taskCallbackInfo.message ?: "")
             )
         }
     }
