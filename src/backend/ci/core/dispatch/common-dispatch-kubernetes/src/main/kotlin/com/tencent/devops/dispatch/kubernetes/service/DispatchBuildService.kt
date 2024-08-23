@@ -616,6 +616,8 @@ class DispatchBuildService @Autowired constructor(
                 return
             }
 
+            calculateWorkloadUsage(dockerRoutingType, event)
+
             buildPoolRecordList.forEach {
                 if (it.containerName != null) {
                     stopBuilder(dockerRoutingType, it.vmSeqId, it.containerName, event, it.createTime)
@@ -645,8 +647,6 @@ class DispatchBuildService @Autowired constructor(
                 vmSeqId = vmSeqId,
                 executeCount = executeCount ?: 1
             )
-
-            calculateWorkloadUsage(dockerRoutingType, event)
         }
     }
 
