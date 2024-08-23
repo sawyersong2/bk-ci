@@ -12,17 +12,19 @@ func InitTask() {
 	go WatchTaskDeployment()
 }
 
-func OkTask(taskId string) {
-	OkTaskWithPodName(taskId, "")
-}
-
-func OkTaskWithPodName(taskId string, podName string) {
+func OkTaskWithPodName(taskId string, podName string, taskAction types.TaskAction) {
 	err := mysql.UpdateTask(taskId, types.TaskSucceeded, "")
 	if err != nil {
 		logs.Errorf("save OkTask %s error %s", taskId, err.Error())
 	}
 
-	callback.TaskCallback(taskId, types.TaskSucceeded, podName)
+	callback.TaskCallback(&callback.TaskCallbackInfo{
+		TaskId:  taskId,
+		PodName: podName,
+		Status:  types.TaskSucceeded,
+		Message: "",
+		Action:  taskAction,
+	})
 }
 
 func OkTaskWithMessage(taskId string, message string) {
@@ -30,6 +32,14 @@ func OkTaskWithMessage(taskId string, message string) {
 	if err != nil {
 		logs.Errorf("save OkTaskWithMessage %s %s error %s", taskId, message, err.Error())
 	}
+
+	callback.TaskCallback(&callback.TaskCallbackInfo{
+		TaskId:  taskId,
+		PodName: "",
+		Status:  types.TaskSucceeded,
+		Message: message,
+		Action:  types.TaskDockerActionInspect,
+	})
 }
 
 func UpdateTask(taskId string, state types.TaskState) {
@@ -39,9 +49,16 @@ func UpdateTask(taskId string, state types.TaskState) {
 	}
 }
 
-func FailTask(taskId string, message string) {
+func FailTask(taskId string, message string, action types.TaskAction) {
 	err := mysql.UpdateTask(taskId, types.TaskFailed, message)
 	if err != nil {
 		logs.Errorf("save FailTask %s %s error %s", taskId, message, err.Error())
 	}
+	callback.TaskCallback(&callback.TaskCallbackInfo{
+		TaskId:  taskId,
+		PodName: "",
+		Status:  types.TaskFailed,
+		Message: message,
+		Action:  action,
+	})
 }

@@ -33,6 +33,8 @@ data class DispatchBuildTaskStatus(
 )
 
 enum class DispatchBuildTaskStatusEnum {
+    RUNNING,
     SUCCEEDED,
-    FAILED
+    FAILED,
+    TIME_OUT
 }

@@ -82,7 +82,8 @@ class DispatchBuildService @Autowired constructor(
     private val dispatchKubernetesBuildDao: DispatchKubernetesBuildDao,
     private val dispatchKubernetesBuildHisDao: DispatchKubernetesBuildHisDao,
     private val dockerRoutingSdkService: DockerRoutingSdkService,
-    private val bkMonitorMetricsService: BkMonitorMetricsService
+    private val bkMonitorMetricsService: BkMonitorMetricsService,
+    private val dispatchBaseTaskService: DispatchBaseTaskService
 ) {
 
     companion object {
@@ -450,7 +451,7 @@ class DispatchBuildService @Autowired constructor(
                 poolNo = poolNo
             )
 
-            val (taskStatus, failedMsg) = dispatchBuild.waitTaskFinish(userId, taskId)
+            val (taskStatus, failedMsg) = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
 
             if (taskStatus == DispatchBuildTaskStatusEnum.SUCCEEDED) {
                 // 启动成功
@@ -683,7 +684,7 @@ class DispatchBuildService @Autowired constructor(
                     builderName = builderName!!,
                     param = DispatchBuildOperateBuilderParams(DispatchBuildOperateBuilderType.STOP, null)
                 )
-                val (taskStatus, failMsg) = dispatchBuild.waitTaskFinish(userId, taskId)
+                val (taskStatus, failMsg) = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
                 if (taskStatus == DispatchBuildTaskStatusEnum.SUCCEEDED) {
                     logger.info("[$buildId]|[$vmSeqId]|[$executeCount] stop ${dockerRoutingType.name} builder success.")
                 } else {

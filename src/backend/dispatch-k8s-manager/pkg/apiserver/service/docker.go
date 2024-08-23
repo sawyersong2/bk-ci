@@ -45,7 +45,7 @@ func inspect(taskId string, info *DockerInspectInfo) {
 	pullMsg, err := docker.ImagePull(ctx, info.Ref, info.Credential.Username, info.Credential.Password)
 	if err != nil {
 		logs.Error("inspect ImagePull error", err)
-		task.FailTask(taskId, err.Error())
+		task.FailTask(taskId, err.Error(), types.TaskDockerActionInspect)
 		return
 	}
 
@@ -55,7 +55,7 @@ func inspect(taskId string, info *DockerInspectInfo) {
 	images, err := docker.ImageList(ctx)
 	if err != nil {
 		logs.Error("get image list error", err)
-		task.FailTask(taskId, err.Error())
+		task.FailTask(taskId, err.Error(), types.TaskDockerActionInspect)
 		return
 	}
 	id := ""
@@ -69,7 +69,7 @@ func inspect(taskId string, info *DockerInspectInfo) {
 	if id == "" {
 		err = errors.Errorf("image %s not found", imageName)
 		logs.Errorf("pullMsg %s error %s", pullMsg, err.Error())
-		task.FailTask(taskId, err.Error())
+		task.FailTask(taskId, err.Error(), types.TaskDockerActionInspect)
 		return
 	}
 
@@ -84,7 +84,7 @@ func inspect(taskId string, info *DockerInspectInfo) {
 	image, err := docker.ImageInspect(ctx, info.Ref)
 	if err != nil {
 		logs.Error("inspect ImageInspect error", err)
-		task.FailTask(taskId, err.Error())
+		task.FailTask(taskId, err.Error(), types.TaskDockerActionInspect)
 		return
 	}
 
@@ -102,7 +102,7 @@ func inspect(taskId string, info *DockerInspectInfo) {
 	msgStr, err := json.Marshal(msg)
 	if err != nil {
 		logs.Error("inspect jsonMarshal error", err)
-		task.FailTask(taskId, err.Error())
+		task.FailTask(taskId, err.Error(), types.TaskDockerActionInspect)
 		return
 	}
 

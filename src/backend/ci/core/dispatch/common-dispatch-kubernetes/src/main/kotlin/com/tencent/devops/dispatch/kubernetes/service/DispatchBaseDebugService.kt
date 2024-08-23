@@ -70,7 +70,8 @@ class DispatchBaseDebugService @Autowired constructor(
     private val bkAuthPermissionApi: AuthPermissionApi,
     private val pipelineAuthServiceCode: PipelineAuthServiceCode,
     private val dispatchKubernetesRedisUtils: DispatchKubernetesRedisUtils,
-    private val dockerRoutingSdkService: DockerRoutingSdkService
+    private val dockerRoutingSdkService: DockerRoutingSdkService,
+    private val dispatchBaseTaskService: DispatchBaseTaskService
 ) {
 
     companion object {
@@ -252,7 +253,7 @@ class DispatchBaseDebugService @Autowired constructor(
                         builderName = debugBuilderName,
                         param = DispatchBuildOperateBuilderParams(DispatchBuildOperateBuilderType.STOP, null)
                     )
-                    val opResult = containerServiceFactory.load(projectId).waitTaskFinish(userId, taskId)
+                    val opResult = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
                     if (opResult.status == DispatchBuildTaskStatusEnum.SUCCEEDED) {
                         logger.info("stop debug $debugBuilderName success.")
                     } else {
@@ -313,7 +314,7 @@ class DispatchBaseDebugService @Autowired constructor(
         )
 
         logger.info("$userId start builder, taskId:($taskId)")
-        val startResult = containerServiceFactory.load(projectId).waitTaskFinish(userId, taskId)
+        val startResult = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
         if (startResult.status == DispatchBuildTaskStatusEnum.SUCCEEDED) {
             // 启动成功
             logger.info("$userId start ${dockerRoutingType.name} builder success")

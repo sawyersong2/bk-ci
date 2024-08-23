@@ -19,12 +19,20 @@ func DoCreateBuildAndPushImageJob(
 	// 创建镜像拉取凭据
 	_, err := kubeclient.CreateDockerRegistry(job.Pod.PullImageSecret)
 	if err != nil {
-		FailTask(taskId, errors.Wrap(err, "create build and push image job pull image secret error").Error())
+		FailTask(
+			taskId,
+			errors.Wrap(err, "create build and push image job pull image secret error").Error(),
+			types.TaskActionCreate,
+		)
 		return
 	}
 
 	if _, err = kubeclient.CreateDockerRegistry(kanikoSecret); err != nil {
-		FailTask(taskId, errors.Wrap(err, "create build and push image push secret error").Error())
+		FailTask(
+			taskId,
+			errors.Wrap(err, "create build and push image push secret error").Error(),
+			types.TaskActionCreate,
+		)
 		return
 	}
 
@@ -33,14 +41,14 @@ func DoCreateBuildAndPushImageJob(
 		return
 	}
 
-	FailTask(taskId, errors.Wrap(err, "create job error").Error())
+	FailTask(taskId, errors.Wrap(err, "create job error").Error(), types.TaskActionCreate)
 	deleteJobLinkRes(job.Name)
 }
 
 func DoCreateJob(taskId string, job *kubeclient.Job) {
 	_, err := kubeclient.CreateDockerRegistry(job.Pod.PullImageSecret)
 	if err != nil {
-		FailTask(taskId, errors.Wrap(err, "create job pull image secret error").Error())
+		FailTask(taskId, errors.Wrap(err, "create job pull image secret error").Error(), types.TaskActionCreate)
 		return
 	}
 
@@ -50,7 +58,7 @@ func DoCreateJob(taskId string, job *kubeclient.Job) {
 	}
 
 	// 创建失败后的操作
-	FailTask(taskId, errors.Wrap(err, "create job error").Error())
+	FailTask(taskId, errors.Wrap(err, "create job error").Error(), types.TaskActionCreate)
 	deleteJobLinkRes(job.Name)
 
 }
@@ -58,13 +66,13 @@ func DoCreateJob(taskId string, job *kubeclient.Job) {
 func DoDeleteJob(taskId string, jobName string) {
 	err := kubeclient.DeleteJob(jobName)
 	if err != nil {
-		FailTask(taskId, errors.Wrap(err, "delete job error").Error())
+		FailTask(taskId, errors.Wrap(err, "delete job error").Error(), types.TaskActionDelete)
 		return
 	}
 
 	deleteJobLinkRes(jobName)
 
-	OkTask(taskId)
+	OkTaskWithPodName(taskId, "", types.TaskActionDelete)
 }
 
 // deleteJobLinkRes 删除JOB相关联的kubernetes资源
@@ -107,7 +115,7 @@ func watchJobTaskPodCreateOrStart(event watch.Event, pod *corev1.Pod, taskId str
 				UpdateTask(taskId, types.TaskRunning)
 			// 对于task的start/create来说，启动了就算成功，而不关系启动成功还是失败了
 			case corev1.PodRunning, corev1.PodSucceeded, corev1.PodFailed:
-				OkTask(taskId)
+				OkTaskWithPodName(taskId, pod.Name, action)
 			case corev1.PodUnknown:
 				UpdateTask(taskId, types.TaskUnknown)
 			}
@@ -115,7 +123,7 @@ func watchJobTaskPodCreateOrStart(event watch.Event, pod *corev1.Pod, taskId str
 	case watch.Error:
 		{
 			logs.Error("add job error. ", pod)
-			FailTask(taskId, podStatus.Message+"|"+podStatus.Reason)
+			FailTask(taskId, podStatus.Message+"|"+podStatus.Reason, action)
 		}
 	}
 }

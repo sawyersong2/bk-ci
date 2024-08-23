@@ -3,7 +3,9 @@ package com.tencent.devops.dispatch.kubernetes.pojo
 data class TaskCallbackInfo(
     val taskId: String,
     val podName: String,
-    val status: CallbackTaskStatus
+    val status: CallbackTaskStatus,
+    val message: String,
+    val action: CallbackTaskAction
 )
 
 enum class CallbackTaskStatus {
@@ -12,4 +14,11 @@ enum class CallbackTaskStatus {
     succeeded,
     failed,
     abort
+}
+
+enum class CallbackTaskAction {
+    create,
+    stop,
+    start,
+    delete
 }
