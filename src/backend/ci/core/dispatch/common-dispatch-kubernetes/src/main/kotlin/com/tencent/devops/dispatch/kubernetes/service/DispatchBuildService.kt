@@ -620,7 +620,7 @@ class DispatchBuildService @Autowired constructor(
 
             buildPoolRecordList.forEach {
                 if (it.containerName != null) {
-                    stopBuilder(dockerRoutingType, it.vmSeqId, it.containerName, event, it.createTime)
+                    stopBuilder(dockerRoutingType, it.vmSeqId, it.containerName, event)
                 }
 
                 if (it.poolNo != null) {
@@ -678,8 +678,7 @@ class DispatchBuildService @Autowired constructor(
         dockerRoutingType: DockerRoutingType,
         vmSeqId: String,
         builderName: String?,
-        event: PipelineAgentShutdownEvent,
-        startTime: LocalDateTime
+        event: PipelineAgentShutdownEvent
     ) {
         val dispatchBuild = containerServiceFactory.load(event.projectId)
         with(event) {
