@@ -662,14 +662,14 @@ class DispatchBuildService @Autowired constructor(
                 projectId = event.projectId,
                 podName = it.podName,
                 startTime = it.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8")),
-                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
             )
             bkMonitorMetricsService.queryMemoryUsageMetrics(
                 userId = event.userId,
                 projectId = event.projectId,
                 podName = it.podName,
                 startTime = it.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8")),
-                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
             )
         }
     }
