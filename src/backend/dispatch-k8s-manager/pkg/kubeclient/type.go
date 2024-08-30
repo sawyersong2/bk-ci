@@ -22,11 +22,12 @@ type DeploymentStart struct {
 }
 
 type Job struct {
-	Name                  string
-	NodeName              string
-	ActiveDeadlineSeconds *int64
-	BackOffLimit          *int32
-	Pod                   Pod
+	Name                    string
+	NodeName                string
+	ActiveDeadlineSeconds   *int64
+	TTLSecondsAfterFinished *int32
+	BackOffLimit            *int32
+	Pod                     Pod
 }
 
 type Pod struct {

@@ -4,8 +4,9 @@ import "disaptch-k8s-manager/pkg/types"
 
 type Job struct {
 	CommonWorkLoad
-	PodNameSelector       *PodNameSelector `json:"podNameSelector"`       // Pod名称调度选项
-	ActiveDeadlineSeconds *int64           `json:"activeDeadlineSeconds"` // Job存活时间
+	PodNameSelector         *PodNameSelector `json:"podNameSelector"`         // Pod名称调度选项
+	ActiveDeadlineSeconds   *int64           `json:"activeDeadlineSeconds"`   // Job存活时间
+	TTLSecondsAfterFinished *int32           `json:"ttlSecondsAfterFinished"` // Job结束后自动删除时间
 }
 
 type PodNameSelector struct {

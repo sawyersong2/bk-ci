@@ -56,10 +56,11 @@ func CreateJob(job *Job) (taskId string, err error) {
 
 	go task.DoCreateJob(taskId,
 		&kubeclient.Job{
-			Name:                  job.Name,
-			NodeName:              nodeName,
-			ActiveDeadlineSeconds: job.ActiveDeadlineSeconds,
-			BackOffLimit:          &backOffLimit,
+			Name:                    job.Name,
+			NodeName:                nodeName,
+			ActiveDeadlineSeconds:   job.ActiveDeadlineSeconds,
+			TTLSecondsAfterFinished: job.TTLSecondsAfterFinished,
+			BackOffLimit:            &backOffLimit,
 			Pod: kubeclient.Pod{
 				Labels:        getDispatchLabel(job.Name, taskId, types.TaskActionCreate, types.JobTaskLabel),
 				Volumes:       volumes,
