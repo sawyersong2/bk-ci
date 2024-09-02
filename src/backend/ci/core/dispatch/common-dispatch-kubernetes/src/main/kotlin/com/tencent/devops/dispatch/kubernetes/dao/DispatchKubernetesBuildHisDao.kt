@@ -137,12 +137,41 @@ class DispatchKubernetesBuildHisDao {
         vmSeqId: String,
         executeCount: Int,
         builderName: String,
-        podName: String
+        podName: String,
+        clusterId: String,
+        namespace: String
     ) {
         with(TDispatchKubernetesBuildHistory.T_DISPATCH_KUBERNETES_BUILD_HISTORY) {
             dslContext.update(this)
                 .set(CONTAINER_NAME, builderName)
                 .set(POD_NAME, podName)
+                .set(CLUSTER_ID, clusterId)
+                .set(NAMESPACE, namespace)
+                .where(DISPATCH_TYPE.eq(dispatchType))
+                .and(BUILD_ID.eq(buildId))
+                .and(VM_SEQ_ID.eq(vmSeqId))
+                .and(EXECUTE_COUNT.eq(executeCount))
+                .execute()
+        }
+    }
+
+    fun updateWorkloadUsage(
+        dslContext: DSLContext,
+        dispatchType: String,
+        buildId: String,
+        vmSeqId: String,
+        executeCount: Int,
+        cpuPercentile: Double,
+        memPercentile: Double,
+        cpuMetrics: String,
+        memMetrics: String
+    ) {
+        with(TDispatchKubernetesBuildHistory.T_DISPATCH_KUBERNETES_BUILD_HISTORY) {
+            dslContext.update(this)
+                .set(REAL_CPU_PERCENTILE, cpuPercentile)
+                .set(REAL_MEM_PERCENTILE, memPercentile)
+                .set(REAL_CPU_METRICS, cpuMetrics)
+                .set(REAL_MEM_METRICS, memMetrics)
                 .where(DISPATCH_TYPE.eq(dispatchType))
                 .and(BUILD_ID.eq(buildId))
                 .and(VM_SEQ_ID.eq(vmSeqId))

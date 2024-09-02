@@ -34,11 +34,7 @@ import com.tencent.devops.common.api.exception.RemoteServiceException
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.api.util.OkhttpUtils
 import com.tencent.devops.common.client.Client
-import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRequestBody
-import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRequestBodyQueryConfigs
-import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorResp
-import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRespData
-import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRespDataSeries
+import com.tencent.devops.dispatch.kubernetes.pojo.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -46,8 +42,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
-import java.time.Instant
-import java.time.format.DateTimeFormatter
 
 @Service
 class BkMonitorMetricsService @Autowired constructor(
@@ -72,66 +66,48 @@ class BkMonitorMetricsService @Autowired constructor(
         userId: String,
         projectId: String,
         podName: String,
+        clusterId: String,
+        namespace: String,
         startTime: Long,
         endTime: Long
-    ): Map<String, List<Map<String, Any>>> {
-        val promql = "sum(bkmonitor:container_memory_rss{bcs_cluster_id=\"BCS-K8S-26680\",namespace=\"manager-base\"," +
+    ): List<Double> {
+        val promql = "sum(bkmonitor:container_memory_rss{bcs_cluster_id=\"$clusterId\",namespace=\"$namespace\"," +
                 "pod_name=\"$podName\"})"
 
-        val data = searchMetrics(userId, projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
+        val dataPoints = searchMetrics(userId, projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
 
-        val resultData = mutableMapOf<String, List<Map<String, Any>>>()
-        val res = data?.map { d ->
-            mapOf(
-                "used_percent" to (d.getOrNull(0) ?: 0),
-                "time" to if (d.getOrNull(1) == null) {
-                    ""
-                } else {
-                    DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(d[1].toLong()))
-                }
-            )
-        }
-        resultData["used_percent"] = if (res.isNullOrEmpty()) {
-            logger.warn("$userId|$projectId|$podName mem metrics is empty")
-            listOf()
-        } else {
-            res
+        val memoryUsageMetrics = mutableListOf<Double>()
+        dataPoints?.forEach { d ->
+            if (d[0] != null) {
+                memoryUsageMetrics.add(d[0] ?: 0.0)
+            }
         }
 
-        return resultData
+        return memoryUsageMetrics
     }
 
     fun queryCpuUsageMetrics(
         userId: String,
         projectId: String,
         podName: String,
+        clusterId: String,
+        namespace: String,
         startTime: Long,
         endTime: Long
-    ): Map<String, List<Map<String, Any>>> {
-        val promql = "sum(rate(bkmonitor:container_cpu_usage_seconds_total{bcs_cluster_id=\"BCS-K8S-26680\"," +
-                "namespace=\"manager-base\",pod_name=\"$podName\"}[2m]))"
+    ): List<Double> {
+        val promql = "sum(rate(bkmonitor:container_cpu_usage_seconds_total{bcs_cluster_id=\"$clusterId\"," +
+                "namespace=\"$namespace\",pod_name=\"$podName\"}[2m]))"
 
-        val data = searchMetrics(userId, projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
+        val dataPoints = searchMetrics(userId, projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
 
-        val resultData = mutableMapOf<String, List<Map<String, Any>>>()
-        val res = data?.map { d ->
-            mapOf(
-                "usage_user" to (d.getOrNull(0) ?: 0),
-                "time" to if (d.getOrNull(1) == null) {
-                    ""
-                } else {
-                    DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(d[1].toLong()))
-                }
-            )
-        }
-        resultData["usage_user"] = if (res.isNullOrEmpty()) {
-            logger.warn("$userId|$projectId|$podName| cpu metrics is empty")
-            listOf()
-        } else {
-            res
+        val cpuUsageMetrics = mutableListOf<Double>()
+        dataPoints?.forEach { d ->
+            if (d[0] != null) {
+                cpuUsageMetrics.add(d[0] ?: 0.0)
+            }
         }
 
-        return resultData
+        return cpuUsageMetrics
     }
 
 /*    fun queryDiskioMetrics(
@@ -208,45 +184,6 @@ class BkMonitorMetricsService @Autowired constructor(
         result.putAll(formatData(tag, "OUT", sendData))
         return result
     }*/
-
-    private fun formatData(
-        tag: String,
-        label: String,
-        series: List<BkMonitorRespDataSeries>?
-    ): Map<String, List<Map<String, Any>>> {
-        if (series.isNullOrEmpty()) {
-            return emptyMap()
-        }
-
-        val result = mutableMapOf<String, List<Map<String, Any>>>()
-        series.forEach { s ->
-            val dimension = s.dimensions?.get(tag) ?: return@forEach
-            val fullLabel = "$dimension:$label"
-            val data = s.datapoints?.map {
-                parseDatapointItem(fullLabel, it)
-            } ?: listOf()
-            result[fullLabel] = data
-        }
-
-        return result
-    }
-
-    private fun parseDatapointItem(label: String, item: List<Double>): Map<String, Any> {
-        // 前端计算需要数据*10与开源版influxdb相同
-        val data = if (item.getOrNull(0) == null) {
-            0
-        } else {
-            item[0] * 10
-        }
-        return mapOf(
-            label to data,
-            "time" to if (item.getOrNull(1) == null) {
-                ""
-            } else {
-                DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochMilli(item[1].toLong()))
-            }
-        )
-    }
 
     private fun searchMetrics(
         userId: String,

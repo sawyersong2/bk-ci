@@ -445,6 +445,19 @@ class DispatchBuildService @Autowired constructor(
 
             val taskCallbackInfo = dispatchBaseTaskService.waitTaskFinish(userId, taskId)
 
+            // 根据回调信息，记录负载集群和域名等信息
+            dispatchKubernetesBuildHisDao.updateWorkloadName(
+                dslContext = dslContext,
+                dispatchType = dockerRoutingType.name,
+                buildId = buildId,
+                vmSeqId = vmSeqId,
+                executeCount = executeCount ?: 1,
+                builderName = builderName,
+                podName = taskCallbackInfo.podName,
+                clusterId = taskCallbackInfo.clusterId,
+                namespace = taskCallbackInfo.namespace
+            )
+
             if (taskCallbackInfo.status == TaskCallbackStatus.succeeded) {
                 logger.info(
                     "buildId: $buildId,vmSeqId: $vmSeqId,executeCount: $executeCount,poolNo: $poolNo " +
@@ -472,17 +485,6 @@ class DispatchBuildService @Autowired constructor(
                     memory = threadLocalMemory.get(),
                     disk = threadLocalDisk.get()
                 )
-
-                // 更新历史表中builderName
-                dispatchKubernetesBuildHisDao.updateWorkloadName(
-                    dslContext = dslContext,
-                    dispatchType = dockerRoutingType.name,
-                    buildId = buildId,
-                    vmSeqId = vmSeqId,
-                    executeCount = executeCount ?: 1,
-                    builderName = builderName,
-                    podName = taskCallbackInfo.podName
-                )
             } else {
                 clearExceptionBuilder(dockerRoutingType, builderName, projectId, dispatchMessage)
                 // 重置资源池状态
@@ -494,15 +496,7 @@ class DispatchBuildService @Autowired constructor(
                     poolNo = poolNo,
                     status = DispatchBuilderStatus.IDLE.status
                 )
-                dispatchKubernetesBuildHisDao.updateWorkloadName(
-                    dslContext = dslContext,
-                    dispatchType = dockerRoutingType.name,
-                    buildId = buildId,
-                    vmSeqId = vmSeqId,
-                    executeCount = executeCount ?: 1,
-                    builderName = builderName,
-                    podName = taskCallbackInfo.podName
-                )
+
                 throw BuildFailureException(
                     ErrorCodeEnum.BASE_START_VM_ERROR.errorType,
                     ErrorCodeEnum.BASE_START_VM_ERROR.errorCode,
@@ -616,8 +610,6 @@ class DispatchBuildService @Autowired constructor(
                 return
             }
 
-            calculateWorkloadUsage(dockerRoutingType, event)
-
             buildPoolRecordList.forEach {
                 if (it.containerName != null) {
                     stopBuilder(dockerRoutingType, it.vmSeqId, it.containerName, event)
@@ -647,6 +639,8 @@ class DispatchBuildService @Autowired constructor(
                 vmSeqId = vmSeqId,
                 executeCount = executeCount ?: 1
             )
+
+            calculateWorkloadUsage(dockerRoutingType, event)
         }
     }
 
@@ -657,20 +651,57 @@ class DispatchBuildService @Autowired constructor(
             vmSeqId = event.vmSeqId ?: "",
             dispatchType = dockerRoutingType.name,
         ).first()?.let {
-            bkMonitorMetricsService.queryCpuUsageMetrics(
+            val cpuMetrics = bkMonitorMetricsService.queryCpuUsageMetrics(
                 userId = event.userId,
                 projectId = event.projectId,
                 podName = it.podName,
+                clusterId = it.clusterId,
+                namespace = it.namespace,
                 startTime = it.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8")),
                 endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
             )
-            bkMonitorMetricsService.queryMemoryUsageMetrics(
+            val cpuPercentile = cpuMetrics.percentile(80.0) ?: 0.0
+
+            val memoryMetrics = bkMonitorMetricsService.queryMemoryUsageMetrics(
                 userId = event.userId,
                 projectId = event.projectId,
                 podName = it.podName,
+                clusterId = it.clusterId,
+                namespace = it.namespace,
                 startTime = it.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8")),
                 endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
             )
+            val memoryPercentile = memoryMetrics.percentile(80.0) ?: 0.0
+
+            dispatchKubernetesBuildHisDao.updateWorkloadUsage(
+                dslContext = dslContext,
+                dispatchType = dockerRoutingType.name,
+                buildId = event.buildId,
+                vmSeqId = event.vmSeqId ?: "",
+                executeCount = event.executeCount ?: 1,
+                cpuPercentile = cpuPercentile,
+                cpuMetrics = cpuMetrics.toString(),
+                memPercentile = memoryPercentile,
+                memMetrics = memoryMetrics.toString()
+            )
+        }
+    }
+
+    private fun <T : Comparable<T>> List<T>.percentile(percentage: Double): Double? {
+        if (this.isEmpty()) return null
+
+        val sortedList = this.sorted()
+        val size = sortedList.size
+        val index = (percentage / 100) * (size - 1)
+        val lowerIndex = index.toInt()
+        val upperIndex = if (index == lowerIndex.toDouble()) lowerIndex else lowerIndex + 1
+
+        return if (lowerIndex == upperIndex) {
+            sortedList[lowerIndex] as Double
+        } else {
+            val lowerValue = sortedList[lowerIndex] as Double
+            val upperValue = sortedList[upperIndex] as Double
+            lowerValue + (index - lowerIndex) * (upperValue - lowerValue)
         }
     }
 

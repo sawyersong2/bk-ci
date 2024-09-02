@@ -45,5 +45,5 @@ data class BkMonitorRespData(
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class BkMonitorRespDataSeries(
     val dimensions: Map<String, String>?,
-    val datapoints: List<List<Double>>?
+    val datapoints: List<List<Double?>>?
 )

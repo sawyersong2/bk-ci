@@ -70,6 +70,8 @@ class DispatchBaseTaskService @Autowired constructor(
                 return TaskCallbackInfo(
                     status = TaskCallbackStatus.timeout,
                     podName = "",
+                    clusterId = "",
+                    namespace = "",
                     message = "${I18nUtil.getCodeLanMessage(BK_KUBERNETES_TASK_EXECUTE_TIMEOUT)}（10min）",
                     action = TaskCallbackAction.unkown,
                     taskId = taskId
