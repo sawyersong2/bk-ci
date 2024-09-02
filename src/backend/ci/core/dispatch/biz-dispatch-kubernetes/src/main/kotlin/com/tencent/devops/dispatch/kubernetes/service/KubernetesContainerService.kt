@@ -239,7 +239,7 @@ class KubernetesContainerService @Autowired constructor(
                         ENV_KEY_GATEWAY to dispatchMessages.gateway,
                         "TERM" to "xterm-256color",
                         SLAVE_ENVIRONMENT to "Kubernetes",
-                        ENV_JOB_BUILD_TYPE to (dispatchType?.buildType()?.name ?: BuildType.KUBERNETES.name),
+                        ENV_JOB_BUILD_TYPE to (dispatchType.buildType().name),
                         ENV_DEFAULT_LOCALE_LANGUAGE to commonConfig.devopsDefaultLocaleLanguage
                     ),
                     command = listOf("/bin/sh", entrypoint),

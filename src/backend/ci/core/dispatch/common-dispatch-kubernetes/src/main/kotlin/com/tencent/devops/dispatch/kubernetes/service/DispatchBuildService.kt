@@ -91,6 +91,9 @@ class DispatchBuildService @Autowired constructor(
     @Value("\${registry.password}")
     val registryPwd: String? = null
 
+    @Value("\${kubernetes.clusterId:}")
+    val kubernetesClusterId: String = ""
+
     private val threadLocalCpu = ThreadLocal<Double>()
     private val threadLocalMemory = ThreadLocal<String>()
     private val threadLocalDisk = ThreadLocal<String>()
@@ -454,7 +457,7 @@ class DispatchBuildService @Autowired constructor(
                 executeCount = executeCount ?: 1,
                 builderName = builderName,
                 podName = taskCallbackInfo.podName,
-                clusterId = taskCallbackInfo.clusterId,
+                clusterId = kubernetesClusterId,
                 namespace = taskCallbackInfo.namespace
             )
 
