@@ -72,7 +72,7 @@ func DoDeleteJob(taskId string, jobName string) {
 
 	deleteJobLinkRes(jobName)
 
-	OkTaskWithPodName(taskId, "", types.TaskActionDelete)
+	OkTask(taskId, nil, types.TaskActionDelete)
 }
 
 // deleteJobLinkRes 删除JOB相关联的kubernetes资源
@@ -115,7 +115,7 @@ func watchJobTaskPodCreateOrStart(event watch.Event, pod *corev1.Pod, taskId str
 				UpdateTask(taskId, types.TaskRunning)
 			// 对于task的start/create来说，启动了就算成功，而不关系启动成功还是失败了
 			case corev1.PodRunning, corev1.PodSucceeded, corev1.PodFailed:
-				OkTaskWithPodName(taskId, pod.Name, action)
+				OkTask(taskId, pod, action)
 			case corev1.PodUnknown:
 				UpdateTask(taskId, types.TaskUnknown)
 			}

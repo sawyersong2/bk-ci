@@ -5,6 +5,7 @@ import (
 	"disaptch-k8s-manager/pkg/db/mysql"
 	"disaptch-k8s-manager/pkg/logs"
 	"disaptch-k8s-manager/pkg/types"
+	v1 "k8s.io/api/core/v1"
 )
 
 func InitTask() {
@@ -12,18 +13,20 @@ func InitTask() {
 	go WatchTaskDeployment()
 }
 
-func OkTaskWithPodName(taskId string, podName string, taskAction types.TaskAction) {
+func OkTask(taskId string, pod *v1.Pod, taskAction types.TaskAction) {
 	err := mysql.UpdateTask(taskId, types.TaskSucceeded, "")
 	if err != nil {
 		logs.Errorf("save OkTask %s error %s", taskId, err.Error())
 	}
-
+	// 获取Pod的相关信息
+	podName, namespace := getPodInfo(pod)
 	callback.TaskCallback(&callback.TaskCallbackInfo{
-		TaskId:  taskId,
-		PodName: podName,
-		Status:  types.TaskSucceeded,
-		Message: "",
-		Action:  taskAction,
+		TaskId:    taskId,
+		PodName:   podName,
+		Namespace: namespace,
+		Status:    types.TaskSucceeded,
+		Message:   "",
+		Action:    taskAction,
 	})
 }
 
@@ -34,11 +37,12 @@ func OkTaskWithMessage(taskId string, message string) {
 	}
 
 	callback.TaskCallback(&callback.TaskCallbackInfo{
-		TaskId:  taskId,
-		PodName: "",
-		Status:  types.TaskSucceeded,
-		Message: message,
-		Action:  types.TaskDockerActionInspect,
+		TaskId:    taskId,
+		PodName:   "",
+		Namespace: "",
+		Status:    types.TaskSucceeded,
+		Message:   message,
+		Action:    types.TaskDockerActionInspect,
 	})
 }
 
@@ -55,10 +59,19 @@ func FailTask(taskId string, message string, action types.TaskAction) {
 		logs.Errorf("save FailTask %s %s error %s", taskId, message, err.Error())
 	}
 	callback.TaskCallback(&callback.TaskCallbackInfo{
-		TaskId:  taskId,
-		PodName: "",
-		Status:  types.TaskFailed,
-		Message: message,
-		Action:  action,
+		TaskId:    taskId,
+		PodName:   "",
+		Namespace: "",
+		Status:    types.TaskFailed,
+		Message:   message,
+		Action:    action,
 	})
+}
+
+// getPodInfo 获取Pod的相关信息
+func getPodInfo(pod *v1.Pod) (podName, namespace string) {
+	if pod != nil {
+		return pod.Name, pod.Namespace
+	}
+	return "", ""
 }

@@ -38,7 +38,6 @@ func TaskCallback(taskInfo *TaskCallbackInfo) {
 type TaskCallbackInfo struct {
 	TaskId    string           `json:"taskId"`
 	PodName   string           `json:"podName"`
-	ClusterId string           `json:"clusterId"`
 	Namespace string           `json:"namespace"`
 	Status    types.TaskState  `json:"status"`
 	Message   string           `json:"message"`

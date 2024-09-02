@@ -135,7 +135,7 @@ func DoDeleteBuilder(taskId string, builderName string) {
 	deleteBuilderLinkRes(builderName)
 	deleteBuilderLinkDbData(builderName)
 
-	OkTaskWithPodName(taskId, "", types.TaskActionDelete)
+	OkTask(taskId, nil, types.TaskActionDelete)
 }
 
 // deleteBuilderLinkRes 删除构建机相关联的kubernetes资源
@@ -211,7 +211,7 @@ func watchBuilderTaskPodCreateOrStart(event watch.Event, pod *corev1.Pod, taskId
 					}
 					defer redis.UnLock(key)
 
-					OkTaskWithPodName(taskId, pod.Name, action)
+					OkTask(taskId, pod, action)
 
 					// mysql中保存分配至节点成功的构建机最近三次节点信息，用来做下一次调度的依据
 					if builderName == "" {
@@ -270,7 +270,7 @@ func watchBuilderTaskDeploymentStop(event watch.Event, dep *appsv1.Deployment, t
 		switch event.Type {
 		case watch.Modified:
 			if dep.Spec.Replicas != nil && *dep.Spec.Replicas == 0 {
-				OkTaskWithPodName(taskId, "", action)
+				OkTask(taskId, nil, action)
 			}
 		case watch.Error:
 			logs.Error("stop builder error. ", dep)
