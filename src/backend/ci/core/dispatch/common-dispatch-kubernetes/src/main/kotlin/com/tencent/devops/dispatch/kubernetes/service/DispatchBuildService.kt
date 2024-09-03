@@ -58,6 +58,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -682,9 +684,11 @@ class DispatchBuildService @Autowired constructor(
                 buildId = event.buildId,
                 vmSeqId = event.vmSeqId ?: "",
                 executeCount = event.executeCount ?: 1,
-                cpuPercentile = cpuPercentile,
+                cpuPercentile = BigDecimal.valueOf(cpuPercentile)
+                    .setScale(2, RoundingMode.HALF_UP).toDouble(),
                 cpuMetrics = cpuMetrics.toString(),
-                memPercentile = memoryPercentile,
+                memPercentile = BigDecimal.valueOf(memoryPercentile).divide(BigDecimal.valueOf(1024 * 1024 * 1024))
+                    .setScale(2, RoundingMode.HALF_UP).toDouble(),
                 memMetrics = memoryMetrics.toString()
             )
         }
