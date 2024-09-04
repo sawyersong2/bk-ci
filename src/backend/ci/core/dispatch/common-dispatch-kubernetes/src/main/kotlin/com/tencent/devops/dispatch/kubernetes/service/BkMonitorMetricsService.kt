@@ -34,19 +34,30 @@ import com.tencent.devops.common.api.exception.RemoteServiceException
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.api.util.OkhttpUtils
 import com.tencent.devops.common.client.Client
+import com.tencent.devops.common.dispatch.sdk.pojo.docker.DockerRoutingType
+import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildHisDao
+import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesJobHisDao
 import com.tencent.devops.dispatch.kubernetes.pojo.*
+import com.tencent.devops.process.pojo.mq.PipelineAgentShutdownEvent
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import kotlin.streams.toList
 
 @Service
 class BkMonitorMetricsService @Autowired constructor(
     private val client: Client,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val dslContext: DSLContext,
+    private val dispatchKubernetesBuildHisDao: DispatchKubernetesBuildHisDao,
+    private val dispatchKubernetesJobHisDao: DispatchKubernetesJobHisDao
 ) {
 
     @Value("\${bkMonitor.gateway:#{null}}")
@@ -62,128 +73,96 @@ class BkMonitorMetricsService @Autowired constructor(
         private val logger = LoggerFactory.getLogger(BkMonitorMetricsService::class.java)
     }
 
-    fun queryMemoryUsageMetrics(
-        userId: String,
-        projectId: String,
-        podName: String,
-        clusterId: String,
-        namespace: String,
+    fun calculateWorkloadUsage(dockerRoutingType: DockerRoutingType, event: PipelineAgentShutdownEvent) {
+        val commonProcessor: (buildHistory: BuildHistory) -> Unit = { buildHistory ->
+            val startTime = buildHistory.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8"))
+            val endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
+
+            val cpuMetrics = queryUsageMetrics(event, buildHistory, startTime, endTime, MetricType.CPU)
+            val cpuPercentile = cpuMetrics.percentile(80.0) ?: 0.0
+
+            val memoryMetrics = queryUsageMetrics(event, buildHistory, startTime, endTime, MetricType.MEMORY)
+            val memoryPercentile = memoryMetrics.percentile(80.0) ?: 0.0
+
+            updateWorkloadUsage(buildHistory, cpuPercentile, cpuMetrics, memoryPercentile, memoryMetrics)
+        }
+
+        dispatchKubernetesBuildHisDao.get(
+            dslContext = dslContext,
+            buildId = event.buildId,
+            vmSeqId = event.vmSeqId ?: "",
+            dispatchType = dockerRoutingType.name,
+        ).first()?.let {
+            BuildHistory(
+                id = it.id,
+                podName = it.podName,
+                clusterId = it.clusterId,
+                namespace = it.namespace,
+                createTime = it.createTime,
+                workloadType = WorkloadType.DEPLOYMENT
+            ).let(commonProcessor)
+        }
+
+        dispatchKubernetesJobHisDao.getBuildJobHistory(
+            dslContext = dslContext,
+            buildId = event.buildId,
+            vmSeqId = event.vmSeqId ?: "",
+            executeCount = event.executeCount ?: 1
+        ).stream().map { BuildHistory(
+            id = it.id,
+            podName = it.podName,
+            clusterId = it.clusterId,
+            namespace = it.namespace,
+            createTime = it.createdTime,
+            workloadType = WorkloadType.JOB
+        ) }.toList().forEach(commonProcessor)
+    }
+
+    private enum class MetricType {
+        CPU, MEMORY
+    }
+    private enum class WorkloadType {
+        DEPLOYMENT, JOB
+    }
+
+
+    private data class BuildHistory(
+        val id: Long,
+        val podName: String,
+        val clusterId: String,
+        val namespace: String,
+        val createTime: LocalDateTime,
+        val workloadType: WorkloadType
+    )
+
+    private fun queryUsageMetrics(
+        event: PipelineAgentShutdownEvent,
+        buildHistory: BuildHistory,
         startTime: Long,
-        endTime: Long
+        endTime: Long,
+        metricType: MetricType
     ): List<Double> {
-        val promql = "sum(bkmonitor:container_memory_rss{bcs_cluster_id=\"$clusterId\",namespace=\"$namespace\"," +
-                "pod_name=\"$podName\"})"
+        val promql = when (metricType) {
+            MetricType.CPU -> "sum(rate(bkmonitor:container_cpu_usage_seconds_total" +
+                    "{bcs_cluster_id=\"${buildHistory.clusterId}\",namespace=\"${buildHistory.namespace}\"," +
+                    "pod_name=\"${buildHistory.podName}\"}[2m]))"
+            MetricType.MEMORY -> "sum(bkmonitor:container_memory_rss" +
+                    "{bcs_cluster_id=\"${buildHistory.clusterId}\",namespace=\"${buildHistory.namespace}\"," +
+                    "pod_name=\"${buildHistory.podName}\"})"
+        }
 
-        val dataPoints = searchMetrics(userId, projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
+        val dataPoints =
+            searchMetrics(event.userId, event.projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
 
-        val memoryUsageMetrics = mutableListOf<Double>()
+        val usageMetrics = mutableListOf<Double>()
         dataPoints?.forEach { d ->
             if (d[0] != null) {
-                memoryUsageMetrics.add(d[0] ?: 0.0)
+                usageMetrics.add(d[0] ?: 0.0)
             }
         }
 
-        return memoryUsageMetrics
+        return usageMetrics
     }
-
-    fun queryCpuUsageMetrics(
-        userId: String,
-        projectId: String,
-        podName: String,
-        clusterId: String,
-        namespace: String,
-        startTime: Long,
-        endTime: Long
-    ): List<Double> {
-        val promql = "sum(rate(bkmonitor:container_cpu_usage_seconds_total{bcs_cluster_id=\"$clusterId\"," +
-                "namespace=\"$namespace\",pod_name=\"$podName\"}[2m]))"
-
-        val dataPoints = searchMetrics(userId, projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
-
-        val cpuUsageMetrics = mutableListOf<Double>()
-        dataPoints?.forEach { d ->
-            if (d[0] != null) {
-                cpuUsageMetrics.add(d[0] ?: 0.0)
-            }
-        }
-
-        return cpuUsageMetrics
-    }
-
-/*    fun queryDiskioMetrics(
-        userId: String,
-        projectId: String,
-        agentHashId: String,
-        os: String,
-        timeRange: String
-    ): Map<String, List<Map<String, Any>>> {
-        val groupByTime: String = when (timeRange) {
-            TIME_RANGE_WEEK -> "10m"
-            TIME_RANGE_DAY -> "2m"
-            else -> "10s"
-        }
-        val tag = when (OS.valueOf(os)) {
-            OS.MACOS, OS.LINUX -> "name"
-            OS.WINDOWS -> "instance"
-        }
-//        val (readPromql, writePromql) = when (OS.valueOf(agentRecord.os)) {
-//            OS.MACOS, OS.LINUX -> Pair(
-//                "abs(avg(rate($dataTableName:io:rkb_s{agentId=\"$agentId\"," +
-//                    "projectId=\"$projectId\"}[$groupByTime])) by ($tag))",
-//                "abs(avg(rate($dataTableName:io:wkb_s{agentId=\"$agentId\"," +
-//                    "projectId=\"$projectId\"}[$groupByTime])) by ($tag))"
-//            )
-//
-//            OS.WINDOWS -> Pair(
-//                "avg($dataTableName:io:rkb_s{agentId=\"$agentId\",projectId=\"$projectId\"}) by ($tag)",
-//                "avg($dataTableName:io:wkb_s{agentId=\"$agentId\",projectId=\"$projectId\"}) by ($tag)"
-//            )
-//
-//            else -> return emptyMap()
-//        }
-        val readPromql = "abs(avg(rate($dataTableName:io:rkb_s{agentId=\"$agentHashId\"," +
-                "projectId=\"$projectId\"}[$groupByTime])) by ($tag))"
-        val writePromql = "abs(avg(rate($dataTableName:io:wkb_s{agentId=\"$agentHashId\"," +
-                "projectId=\"$projectId\"}[$groupByTime])) by ($tag))"
-
-        val readData = searchMetrics(projectId, readPromql, timeRange)
-        val writeData = searchMetrics(projectId, writePromql, timeRange)
-
-        val result = mutableMapOf<String, List<Map<String, Any>>>()
-        result.putAll(formatData(tag, "read", readData))
-        result.putAll(formatData(tag, "write", writeData))
-        return result
-    }
-
-    fun queryNetMetrics(
-        userId: String,
-        projectId: String,
-        agentHashId: String,
-        os: String,
-        timeRange: String
-    ): Map<String, List<Map<String, Any>>> {
-        val groupByTime: String = when (timeRange) {
-            TIME_RANGE_WEEK -> "10m"
-            TIME_RANGE_DAY -> "2m"
-            else -> "10s"
-        }
-        val tag = when (OS.valueOf(os)) {
-            OS.MACOS, OS.LINUX -> "interface"
-            OS.WINDOWS -> "instance"
-        }
-        val readPromql = "abs(avg(rate($dataTableName:net:speed_recv{agentId=\"$agentHashId\"," +
-                "projectId=\"$projectId\"}[$groupByTime])) by ($tag))"
-        val sendPromql = "abs(avg(rate($dataTableName:net:speed_sent{agentId=\"$agentHashId\"," +
-                "projectId=\"$projectId\"}[$groupByTime])) by ($tag))"
-
-        val readData = searchMetrics(projectId, readPromql, timeRange)
-        val sendData = searchMetrics(projectId, sendPromql, timeRange)
-
-        val result = mutableMapOf<String, List<Map<String, Any>>>()
-        result.putAll(formatData(tag, "IN", readData))
-        result.putAll(formatData(tag, "OUT", sendData))
-        return result
-    }*/
 
     private fun searchMetrics(
         userId: String,
@@ -219,9 +198,59 @@ class BkMonitorMetricsService @Autowired constructor(
         return data
     }
 
+    private fun updateWorkloadUsage(
+        buildHistory: BuildHistory,
+        cpuPercentile: Double,
+        cpuMetrics: List<Double>,
+        memoryPercentile: Double,
+        memoryMetrics: List<Double>
+    ) {
+        when(buildHistory.workloadType) {
+            WorkloadType.DEPLOYMENT -> {
+                dispatchKubernetesJobHisDao.updateWorkloadUsage(
+                    dslContext = dslContext,
+                    id = buildHistory.id,
+                    cpuPercentile = cpuPercentile,
+                    cpuMetrics = cpuMetrics.toString(),
+                    memPercentile = memoryPercentile,
+                    memMetrics = memoryMetrics.toString()
+                )
+            }
+            WorkloadType.JOB -> {
+                dispatchKubernetesBuildHisDao.updateWorkloadUsage(
+                    dslContext = dslContext,
+                    id = buildHistory.id,
+                    cpuPercentile = cpuPercentile,
+                    cpuMetrics = cpuMetrics.toString(),
+                    memPercentile = memoryPercentile,
+                    memMetrics = memoryMetrics.toString()
+                )
+            }
+        }
+    }
+
     private fun getBizId(userId: String, projectId: String): Long? {
         return client.get(ServiceMonitorSpaceResource::class).getMonitorSpaceBizId(userId, projectId).data?.toLong()
     }
+
+    private fun <T : Comparable<T>> List<T>.percentile(percentage: Double): Double? {
+        if (this.isEmpty()) return null
+
+        val sortedList = this.sorted()
+        val size = sortedList.size
+        val index = (percentage / 100) * (size - 1)
+        val lowerIndex = index.toInt()
+        val upperIndex = if (index == lowerIndex.toDouble()) lowerIndex else lowerIndex + 1
+
+        return if (lowerIndex == upperIndex) {
+            sortedList[lowerIndex] as Double
+        } else {
+            val lowerValue = sortedList[lowerIndex] as Double
+            val upperValue = sortedList[upperIndex] as Double
+            lowerValue + (index - lowerIndex) * (upperValue - lowerValue)
+        }
+    }
+
 
     private fun requestBkMonitor(body: Any): BkMonitorRespData? {
         return try {

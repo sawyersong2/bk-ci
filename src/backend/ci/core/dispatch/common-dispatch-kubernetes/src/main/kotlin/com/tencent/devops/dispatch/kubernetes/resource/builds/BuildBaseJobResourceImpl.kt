@@ -38,23 +38,33 @@ import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchTaskResp
 import com.tencent.devops.dispatch.kubernetes.service.DispatchBaseJobService
 import com.tencent.devops.dispatch.kubernetes.service.DispatchBuildService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 
 @RestResource
 class BuildBaseJobResourceImpl @Autowired constructor(
     private val dispatchBaseJobService: DispatchBaseJobService,
     private val dispatchBuildService: DispatchBuildService
 ) : BuildBaseJobResource {
+
     override fun createJob(
         userId: String,
         projectId: String,
+        pipelineId: String,
         buildId: String,
+        vmSeqId: String,
+        taskId: String,
+        executeCount: Int,
         jobReq: DispatchJobReq
     ): Result<DispatchTaskResp> {
         return Result(
             dispatchBaseJobService.createJob(
                 userId = userId,
                 projectId = projectId,
+                pipelineId = pipelineId,
                 buildId = buildId,
+                vmSeqId = vmSeqId,
+                taskId = taskId,
+                executeCount = executeCount,
                 jobReq = jobReq
             )
         )

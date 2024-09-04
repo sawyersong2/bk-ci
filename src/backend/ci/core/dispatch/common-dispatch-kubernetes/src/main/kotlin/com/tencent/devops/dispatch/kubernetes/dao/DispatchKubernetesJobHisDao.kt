@@ -27,41 +27,44 @@
 
 package com.tencent.devops.dispatch.kubernetes.dao
 
-import com.tencent.devops.model.dispatch.kubernetes.tables.TDispatchKubernetesBuildHistory
-import com.tencent.devops.model.dispatch.kubernetes.tables.records.TDispatchKubernetesBuildHistoryRecord
+import com.tencent.devops.model.dispatch.kubernetes.tables.TDispatchKubernetesJobHistory
+import com.tencent.devops.model.dispatch.kubernetes.tables.records.TDispatchKubernetesJobHistoryRecord
 import org.jooq.DSLContext
 import org.jooq.Result
 import org.springframework.stereotype.Repository
 
 @Repository
-class DispatchKubernetesBuildHisDao {
+class DispatchKubernetesJobHisDao {
 
     fun create(
         dslContext: DSLContext,
-        dispatchType: String,
         projectId: String,
         pipelineId: String,
         buildId: String,
         vmSeqId: String,
-        poolNo: Int,
-        secretKey: String,
-        builderName: String,
+        taskId: String,
+        executeCount: Int,
+        jobName: String,
+        jobTag: String,
         cpu: Double,
-        memory: String,
-        disk: String,
-        executeCount: Int
+        memory: Double,
+        disk: String
     ): Long {
-        with(TDispatchKubernetesBuildHistory.T_DISPATCH_KUBERNETES_BUILD_HISTORY) {
+        with(TDispatchKubernetesJobHistory.T_DISPATCH_KUBERNETES_JOB_HISTORY) {
             val preRecord = dslContext.selectFrom(this)
                 .where(BUILD_ID.eq(buildId))
                 .and(VM_SEQ_ID.eq(vmSeqId))
+                .and(TASK_ID.eq(taskId))
                 .and(EXECUTE_COUNT.eq(executeCount))
+                .and(JOB_TAG.eq(jobTag))
                 .fetch()
             if (preRecord.size > 0) {
                 dslContext.deleteFrom(this)
                     .where(BUILD_ID.eq(buildId))
                     .and(VM_SEQ_ID.eq(vmSeqId))
+                    .and(TASK_ID.eq(taskId))
                     .and(EXECUTE_COUNT.eq(executeCount))
+                    .and(JOB_TAG.eq(jobTag))
                     .execute()
             }
 
@@ -71,87 +74,83 @@ class DispatchKubernetesBuildHisDao {
                 PIPELINE_ID,
                 BUILD_ID,
                 VM_SEQ_ID,
-                POOL_NO,
-                SECRET_KEY,
-                CONTAINER_NAME,
+                TASK_ID,
+                EXECUTE_COUNT,
+                JOB_NAME,
+                JOB_TAG,
                 CPU,
                 MEMORY,
-                DISK,
-                EXECUTE_COUNT,
-                DISPATCH_TYPE
+                DISK
             ).values(
                 projectId,
                 pipelineId,
                 buildId,
                 vmSeqId,
-                poolNo,
-                secretKey,
-                builderName,
+                taskId,
+                executeCount,
+                jobName,
+                jobTag,
                 cpu,
                 memory,
-                disk,
-                executeCount,
-                dispatchType
+                disk
             ).returning(ID).fetchOne()?.id ?: 1
         }
     }
 
-    fun get(
+    fun getPipelineJobHistory(
         dslContext: DSLContext,
-        dispatchType: String,
-        buildId: String,
-        vmSeqId: String?,
-        executeCount: Int = 1
-    ): Result<TDispatchKubernetesBuildHistoryRecord> {
-        with(TDispatchKubernetesBuildHistory.T_DISPATCH_KUBERNETES_BUILD_HISTORY) {
-            val select = dslContext.selectFrom(this)
-                .where(DISPATCH_TYPE.eq(dispatchType))
-                .and(BUILD_ID.eq(buildId))
+        pipelineId: String,
+        vmSeqId: String,
+        taskId: String,
+        executeCount: Int,
+        jobTag: String
+    ): Result<TDispatchKubernetesJobHistoryRecord> {
+        with(TDispatchKubernetesJobHistory.T_DISPATCH_KUBERNETES_JOB_HISTORY) {
+            return dslContext.selectFrom(this)
+                .where(PIPELINE_ID.eq(pipelineId))
+                .and(VM_SEQ_ID.eq(vmSeqId))
+                .and(TASK_ID.eq(taskId))
                 .and(EXECUTE_COUNT.eq(executeCount))
-            if (vmSeqId != null && vmSeqId.isNotEmpty()) {
-                select.and(VM_SEQ_ID.eq(vmSeqId))
-            }
-
-            return select.fetch()
+                .and(JOB_TAG.eq(jobTag))
+                .fetch()
         }
     }
 
-    fun getLatestBuildHistory(
+    fun getBuildJobHistory(
         dslContext: DSLContext,
-        dispatchType: String,
-        pipelineId: String,
-        vmSeqId: String
-    ): TDispatchKubernetesBuildHistoryRecord? {
-        with(TDispatchKubernetesBuildHistory.T_DISPATCH_KUBERNETES_BUILD_HISTORY) {
+        buildId: String,
+        vmSeqId: String,
+        executeCount: Int
+    ): Result<TDispatchKubernetesJobHistoryRecord> {
+        with(TDispatchKubernetesJobHistory.T_DISPATCH_KUBERNETES_JOB_HISTORY) {
             return dslContext.selectFrom(this)
-                .where(DISPATCH_TYPE.eq(dispatchType))
-                .and(PIPELINE_ID.eq(pipelineId))
+                .where(BUILD_ID.eq(buildId))
                 .and(VM_SEQ_ID.eq(vmSeqId))
-                .orderBy(CREATE_TIME.desc())
-                .fetchAny()
+                .and(EXECUTE_COUNT.eq(executeCount))
+                .fetch()
         }
     }
 
     fun updateWorkloadName(
         dslContext: DSLContext,
-        dispatchType: String,
         buildId: String,
         vmSeqId: String,
+        taskId: String,
+        jobTag: String,
         executeCount: Int,
-        builderName: String,
         podName: String,
         clusterId: String,
         namespace: String
     ) {
-        with(TDispatchKubernetesBuildHistory.T_DISPATCH_KUBERNETES_BUILD_HISTORY) {
+        with(TDispatchKubernetesJobHistory.T_DISPATCH_KUBERNETES_JOB_HISTORY) {
             dslContext.update(this)
-                .set(CONTAINER_NAME, builderName)
                 .set(POD_NAME, podName)
                 .set(CLUSTER_ID, clusterId)
                 .set(NAMESPACE, namespace)
-                .where(DISPATCH_TYPE.eq(dispatchType))
-                .and(BUILD_ID.eq(buildId))
+                .where(BUILD_ID.eq(buildId))
                 .and(VM_SEQ_ID.eq(vmSeqId))
+                .and(TASK_ID.eq(taskId))
+                .and(JOB_TAG.eq(jobTag))
                 .and(EXECUTE_COUNT.eq(executeCount))
                 .execute()
         }
@@ -165,7 +164,7 @@ class DispatchKubernetesBuildHisDao {
         cpuMetrics: String,
         memMetrics: String
     ) {
-        with(TDispatchKubernetesBuildHistory.T_DISPATCH_KUBERNETES_BUILD_HISTORY) {
+        with(TDispatchKubernetesJobHistory.T_DISPATCH_KUBERNETES_JOB_HISTORY) {
             dslContext.update(this)
                 .set(REAL_CPU_PERCENTILE, cpuPercentile)
                 .set(REAL_MEM_PERCENTILE, memPercentile)

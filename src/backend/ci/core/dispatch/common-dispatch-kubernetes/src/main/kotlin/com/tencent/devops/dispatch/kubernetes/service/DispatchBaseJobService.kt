@@ -27,33 +27,83 @@
 
 package com.tencent.devops.dispatch.kubernetes.service
 
+import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesJobHisDao
+import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackStatus
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildStatusResp
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchJobLogResp
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchJobReq
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchTaskResp
 import com.tencent.devops.dispatch.kubernetes.service.factory.JobServiceFactory
+import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 
 @Service
 class DispatchBaseJobService @Autowired constructor(
-    private val jobServiceFactory: JobServiceFactory
+    private val dslContext: DSLContext,
+    private val jobServiceFactory: JobServiceFactory,
+    private val dispatchBaseTaskService: DispatchBaseTaskService,
+    private val dispatchKubernetesJobHisDao: DispatchKubernetesJobHisDao
 ) {
 
     companion object {
         private val logger = LoggerFactory.getLogger(DispatchBaseJobService::class.java)
     }
 
+    @Value("\${kubernetes.clusterId:}")
+    val kubernetesClusterId: String = ""
+
     fun createJob(
         userId: String,
         projectId: String,
+        pipelineId: String,
         buildId: String,
+        vmSeqId: String,
+        taskId: String,
+        executeCount: Int,
         jobReq: DispatchJobReq
     ): DispatchTaskResp {
-        logger.info("projectId: $projectId, buildId: $buildId create jobContainer. userId: $userId")
+        val logPrefix = "$userId|$projectId|$pipelineId|$buildId|$vmSeqId|$executeCount|$taskId|${jobReq.jobTag}"
+        logger.info("$logPrefix createJob: $jobReq")
+        val jobResp = jobServiceFactory.load(projectId).createJob(userId, jobReq)
+        if (jobResp.taskId.isNotEmpty()) {
+            logger.error("$logPrefix createJob failed. ${jobResp.errorMsg}")
+            return DispatchTaskResp(
+                taskId = "",
+                taskStatus = TaskCallbackStatus.failed,
+                errorMsg = jobResp.errorMsg
+            )
+        }
+        val taskCallbackInfo = dispatchBaseTaskService.waitTaskFinish(userId, jobResp.taskId!!)
+        // 根据回调信息，记录负载集群和域名等信息
+        dispatchKubernetesJobHisDao.updateWorkloadName(
+            dslContext = dslContext,
+            buildId = buildId,
+            vmSeqId = vmSeqId,
+            executeCount = executeCount,
+            taskId = taskId,
+            jobTag = jobReq.jobTag ?: "",
+            podName = taskCallbackInfo.podName,
+            clusterId = kubernetesClusterId,
+            namespace = taskCallbackInfo.namespace
+        )
 
-        return jobServiceFactory.load(projectId).createJob(userId, jobReq)
+        return if (taskCallbackInfo.status == TaskCallbackStatus.succeeded) {
+            logger.info("$logPrefix createJob success")
+            DispatchTaskResp(
+                taskId = jobResp.taskId,
+                taskStatus = TaskCallbackStatus.succeeded
+            )
+        } else {
+            logger.info("$logPrefix createJob failed. ${taskCallbackInfo.message}")
+            DispatchTaskResp(
+                taskId = jobResp.taskId,
+                taskStatus = TaskCallbackStatus.failed,
+                errorMsg = taskCallbackInfo.message
+            )
+        }
     }
 
     fun getJobStatus(

@@ -40,7 +40,8 @@ data class DispatchJobReq(
     val registry: DockerRegistry,
     val params: JobParam? = null,
     val podNameSelector: String,
-    val mountPath: String? = null
+    val mountPath: String? = null,
+    val jobTag: String? = null
 )
 
 data class JobParam(

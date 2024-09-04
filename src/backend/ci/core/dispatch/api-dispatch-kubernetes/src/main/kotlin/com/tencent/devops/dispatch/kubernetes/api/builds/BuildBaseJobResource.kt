@@ -27,10 +27,7 @@
 
 package com.tencent.devops.dispatch.kubernetes.api.builds
 
-import com.tencent.devops.common.api.auth.AUTH_HEADER_BUILD_ID
-import com.tencent.devops.common.api.auth.AUTH_HEADER_PROJECT_ID
-import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID
-import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID_DEFAULT_VALUE
+import com.tencent.devops.common.api.auth.*
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildImageReq
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildStatusResp
@@ -66,9 +63,21 @@ interface BuildBaseJobResource {
         @Parameter(description = "projectId", required = true)
         @HeaderParam(AUTH_HEADER_PROJECT_ID)
         projectId: String,
+        @Parameter(description = "流水线id", required = true)
+        @HeaderParam(AUTH_HEADER_PIPELINE_ID)
+        pipelineId: String,
         @Parameter(description = "构建id", required = true)
         @HeaderParam(AUTH_HEADER_BUILD_ID)
         buildId: String,
+        @Parameter(description = "vmSeqId", required = true)
+        @HeaderParam(AUTH_HEADER_VM_SEQ_ID)
+        vmSeqId: String,
+        @Parameter(description = "taskId", required = true)
+        @HeaderParam(AUTH_HEADER_DEVOPS_CI_TASK_ID)
+        taskId: String,
+        @Parameter(description = "重试次数", required = true)
+        @HeaderParam(AUTH_HEADER_DEVOPS_EXECUTE_COUNT)
+        executeCount: Int,
         @Parameter(description = "Job结构", required = true)
         jobReq: DispatchJobReq
     ): Result<DispatchTaskResp>

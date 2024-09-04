@@ -58,10 +58,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
-import java.math.BigDecimal
-import java.math.RoundingMode
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 
 @Service
 class DispatchBuildService @Autowired constructor(
@@ -645,70 +641,7 @@ class DispatchBuildService @Autowired constructor(
                 executeCount = executeCount ?: 1
             )
 
-            calculateWorkloadUsage(dockerRoutingType, event)
-        }
-    }
-
-    private fun calculateWorkloadUsage(dockerRoutingType: DockerRoutingType, event: PipelineAgentShutdownEvent) {
-        dispatchKubernetesBuildHisDao.get(
-            dslContext = dslContext,
-            buildId = event.buildId,
-            vmSeqId = event.vmSeqId ?: "",
-            dispatchType = dockerRoutingType.name,
-        ).first()?.let {
-            val cpuMetrics = bkMonitorMetricsService.queryCpuUsageMetrics(
-                userId = event.userId,
-                projectId = event.projectId,
-                podName = it.podName,
-                clusterId = it.clusterId,
-                namespace = it.namespace,
-                startTime = it.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8")),
-                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
-            )
-            val cpuPercentile = cpuMetrics.percentile(80.0) ?: 0.0
-
-            val memoryMetrics = bkMonitorMetricsService.queryMemoryUsageMetrics(
-                userId = event.userId,
-                projectId = event.projectId,
-                podName = it.podName,
-                clusterId = it.clusterId,
-                namespace = it.namespace,
-                startTime = it.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8")),
-                endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
-            )
-            val memoryPercentile = memoryMetrics.percentile(80.0) ?: 0.0
-
-            dispatchKubernetesBuildHisDao.updateWorkloadUsage(
-                dslContext = dslContext,
-                dispatchType = dockerRoutingType.name,
-                buildId = event.buildId,
-                vmSeqId = event.vmSeqId ?: "",
-                executeCount = event.executeCount ?: 1,
-                cpuPercentile = BigDecimal.valueOf(cpuPercentile)
-                    .setScale(2, RoundingMode.HALF_UP).toDouble(),
-                cpuMetrics = cpuMetrics.toString(),
-                memPercentile = BigDecimal.valueOf(memoryPercentile).divide(BigDecimal.valueOf(1024 * 1024))
-                    .setScale(2, RoundingMode.HALF_UP).toDouble(),
-                memMetrics = memoryMetrics.toString()
-            )
-        }
-    }
-
-    private fun <T : Comparable<T>> List<T>.percentile(percentage: Double): Double? {
-        if (this.isEmpty()) return null
-
-        val sortedList = this.sorted()
-        val size = sortedList.size
-        val index = (percentage / 100) * (size - 1)
-        val lowerIndex = index.toInt()
-        val upperIndex = if (index == lowerIndex.toDouble()) lowerIndex else lowerIndex + 1
-
-        return if (lowerIndex == upperIndex) {
-            sortedList[lowerIndex] as Double
-        } else {
-            val lowerValue = sortedList[lowerIndex] as Double
-            val upperValue = sortedList[upperIndex] as Double
-            lowerValue + (index - lowerIndex) * (upperValue - lowerValue)
+            bkMonitorMetricsService.calculateWorkloadUsage(dockerRoutingType, event)
         }
     }
 
