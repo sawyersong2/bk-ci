@@ -64,7 +64,7 @@ class DispatchBaseTaskService @Autowired constructor(
     fun waitTaskFinish(userId: String, taskId: String): TaskCallbackInfo {
         val startTime = System.currentTimeMillis()
         loop@ while (true) {
-            if (System.currentTimeMillis() - startTime > 10 * 60 * 1000) {
+            if (System.currentTimeMillis() - startTime > WAIT_TASK_TIMEOUT) {
                 logger.error("$taskId kubernetes task timeout")
                 return TaskCallbackInfo(
                     status = TaskCallbackStatus.timeout,
@@ -89,5 +89,6 @@ class DispatchBaseTaskService @Autowired constructor(
 
     companion object {
         private val logger = LoggerFactory.getLogger(DispatchBaseTaskService::class.java)
+        private const val WAIT_TASK_TIMEOUT = 10 * 60 * 1000
     }
 }

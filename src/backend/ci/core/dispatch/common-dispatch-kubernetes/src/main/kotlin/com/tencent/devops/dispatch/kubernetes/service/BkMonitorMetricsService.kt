@@ -80,8 +80,9 @@ class BkMonitorMetricsService @Autowired constructor(
 
     fun calculateWorkloadUsage(dockerRoutingType: DockerRoutingType, event: PipelineAgentShutdownEvent) {
         val commonProcessor: (buildHistory: BuildHistory) -> Unit = { buildHistory ->
-            val startTime = buildHistory.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8"))
-            val endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
+            val zoneOffset = ZoneOffset.systemDefault().rules.getOffset(LocalDateTime.now())
+            val startTime = buildHistory.createTime.plusSeconds(10).toEpochSecond(zoneOffset)
+            val endTime = LocalDateTime.now().toEpochSecond(zoneOffset)
 
             val cpuMetrics = queryUsageMetrics(buildHistory, startTime, endTime, MetricType.CPU)
             val cpuPercentile = cpuMetrics.percentile(80.0) ?: 0.0
