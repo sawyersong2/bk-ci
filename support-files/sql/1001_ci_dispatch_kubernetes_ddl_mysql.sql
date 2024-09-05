@@ -65,6 +65,13 @@ CREATE TABLE IF NOT EXISTS `T_DISPATCH_KUBERNETES_BUILD_HISTORY` (
      `DISK` varchar(64) COMMENT '构建容器磁盘配额 单位G',
      `EXECUTE_COUNT` int(11) DEFAULT '1' COMMENT '流水线重试次数',
      `DISPATCH_TYPE` varchar(32) NOT NULL COMMENT 'DISPATCH类型',
+     `POD_NAME` varchar(128) NOT NULL DEFAULT '' COMMENT '负载类型对应的PodName',
+     `CLUSTER_ID` varchar(128) NOT NULL DEFAULT '' COMMENT '负载类型对应的集群',
+     `NAMESPACE` varchar(128) NOT NULL DEFAULT '' COMMENT '负载类型对应的Namespace',
+     `REAL_CPU_PERCENTILE` float NOT NULL DEFAULT 1 COMMENT '真实的CPU占用',
+     `REAL_MEM_PERCENTILE` float NOT NULL DEFAULT 1 COMMENT '真实的内存占用,单位G',
+     `REAL_CPU_METRICS` text COMMENT '真实的CPU占用详细',
+     `REAL_MEM_METRICS` text COMMENT '真实的内存占用详细',
      `CREATE_TIME` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
      `UPDATE_TIME` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
      PRIMARY KEY (`ID`),
@@ -98,5 +105,36 @@ CREATE TABLE IF NOT EXISTS `T_DISPATCH_KUBERNETES_PERFORMANCE_OPTION` (
       `GMT_MODIFIED` timestamp DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
       PRIMARY KEY (`ID`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='KUBERNETES构建集群基础配额表';
+
+-- ----------------------------
+-- Table structure for T_DISPATCH_KUBERNETES_JOB_HISTORY
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `T_DISPATCH_KUBERNETES_JOB_HISTORY`
+(
+    `ID`                  bigint(20)   NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `PROJECT_ID`          varchar(64)  NOT NULL COMMENT '项目ID',
+    `PIPELINE_ID`         varchar(34)  NOT NULL COMMENT '流水线ID',
+    `BUILD_ID`            varchar(34)  NOT NULL COMMENT '构建ID',
+    `VM_SEQ_ID`           varchar(34)  NOT NULL DEFAULT '' COMMENT '构建序列号',
+    `TASK_ID`             varchar(34)  NOT NULL DEFAULT '' COMMENT '插件taskId',
+    `EXECUTE_COUNT`       int(11)      NOT NULL DEFAULT 1 COMMENT '重试次数',
+    `JOB_NAME`            VARCHAR(128) NOT NULL DEFAULT '' COMMENT 'JOB名称',
+    `JOB_TAG`             VARCHAR(128) NOT NULL DEFAULT '' COMMENT '识别JOB类型TAG',
+    `CPU`                 float        NOT NULL DEFAULT 1 COMMENT 'cpu limit',
+    `MEMORY`              float        NOT NULL DEFAULT 1 COMMENT 'memory limit',
+    `DISK`                varchar(64)  NOT NULL DEFAULT '' COMMENT 'memory limit',
+    `POD_NAME`            VARCHAR(128) NOT NULL DEFAULT '' COMMENT 'POD名称',
+    `CLUSTER_ID` varchar(128) NOT NULL DEFAULT '' COMMENT '负载类型对应的集群',
+    `NAMESPACE` varchar(128) NOT NULL DEFAULT '' COMMENT '负载类型对应的Namespace',
+    `REAL_CPU_PERCENTILE` float        NOT NULL DEFAULT 1 COMMENT '真实的CPU占用',
+    `REAL_MEM_PERCENTILE` float        NOT NULL DEFAULT 1 COMMENT '真实的内存占用,单位G',
+    `REAL_CPU_METRICS`    text COMMENT '真实的CPU占用详细',
+    `REAL_MEM_METRICS`    text COMMENT '真实的内存占用详细',
+    `CREATED_TIME`        datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `UPDATE_TIME`         datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`ID`),
+    UNIQUE KEY `IDX_BUILD_TASK` (`BUILD_ID`, `VM_SEQ_ID`, `TASK_ID`, `EXECUTE_COUNT`, `JOB_TAG`),
+    KEY `IDX_PIPELINE_TASK_TAG` (`PIPELINE_ID`, `VM_SEQ_ID`, `TASK_ID`, `EXECUTE_COUNT`, `JOB_TAG`)
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT 'JOB构建历史表';
 
 SET FOREIGN_KEY_CHECKS = 1;

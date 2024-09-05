@@ -41,7 +41,6 @@ import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRequestBody
 import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRequestBodyQueryConfigs
 import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorResp
 import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRespData
-import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRespDataSeries
 import com.tencent.devops.process.pojo.mq.PipelineAgentShutdownEvent
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
@@ -84,10 +83,10 @@ class BkMonitorMetricsService @Autowired constructor(
             val startTime = buildHistory.createTime.plusSeconds(10).toEpochSecond(ZoneOffset.of("+8"))
             val endTime = LocalDateTime.now().toEpochSecond(ZoneOffset.of("+8"))
 
-            val cpuMetrics = queryUsageMetrics(event, buildHistory, startTime, endTime, MetricType.CPU)
+            val cpuMetrics = queryUsageMetrics(buildHistory, startTime, endTime, MetricType.CPU)
             val cpuPercentile = cpuMetrics.percentile(80.0) ?: 0.0
 
-            val memoryMetrics = queryUsageMetrics(event, buildHistory, startTime, endTime, MetricType.MEMORY)
+            val memoryMetrics = queryUsageMetrics(buildHistory, startTime, endTime, MetricType.MEMORY)
             val memoryPercentile = memoryMetrics.percentile(80.0) ?: 0.0
 
             updateWorkloadUsage(buildHistory, cpuPercentile, cpuMetrics, memoryPercentile, memoryMetrics)
@@ -142,7 +141,6 @@ class BkMonitorMetricsService @Autowired constructor(
     )
 
     private fun queryUsageMetrics(
-        event: PipelineAgentShutdownEvent,
         buildHistory: BuildHistory,
         startTime: Long,
         endTime: Long,
@@ -157,26 +155,6 @@ class BkMonitorMetricsService @Autowired constructor(
                     "pod_name=\"${buildHistory.podName}\"})"
         }
 
-        val dataPoints =
-            searchMetrics(event.userId, event.projectId, promql, startTime, endTime)?.firstOrNull()?.datapoints
-
-        val usageMetrics = mutableListOf<Double>()
-        dataPoints?.forEach { d ->
-            if (d[0] != null) {
-                usageMetrics.add(d[0] ?: 0.0)
-            }
-        }
-
-        return usageMetrics
-    }
-
-    private fun searchMetrics(
-        userId: String,
-        projectId: String,
-        promql: String,
-        startTime: Long,
-        endTime: Long
-    ): List<BkMonitorRespDataSeries>? {
         val methodStartTime = System.currentTimeMillis()
         // val bizId = getBizId(userId, projectId) ?: return null
         val body = BkMonitorRequestBody(
@@ -197,11 +175,12 @@ class BkMonitorMetricsService @Autowired constructor(
             downSampleRange = "2s"
         )
 
-        val data = requestBkMonitor(body)?.series
+        val dataPoints = requestBkMonitor(body)?.series?.firstOrNull()?.datapoints
 
-        logger.info("searchMetrics ${JsonUtil.toJson(body)} cost ${System.currentTimeMillis() - methodStartTime}ms, data: $data")
+        logger.info("searchMetrics ${JsonUtil.toJson(body)} cost ${System.currentTimeMillis() - methodStartTime}ms, " +
+                "response: $dataPoints")
 
-        return data
+        return dataPoints?.mapNotNull { it.getOrNull(0) }?.toList() ?: emptyList()
     }
 
     private fun updateWorkloadUsage(
@@ -263,41 +242,37 @@ class BkMonitorMetricsService @Autowired constructor(
 
     private fun requestBkMonitor(body: Any): BkMonitorRespData? {
         return try {
-            doRequestBkMonitor(body)
+            val url = "$bkMonitorGateway/time_series/unify_query"
+            val headerStr = objectMapper.writeValueAsString(
+                mapOf("bk_app_code" to bkMonitorAppCode, "bk_app_secret" to bkMonitorAppSecret)
+            ).replace("\\s".toRegex(), "")
+            val requestBody = objectMapper.writeValueAsString(body)
+                .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+
+            val request = Request.Builder()
+                .url(url)
+                .post(requestBody)
+                .addHeader("X-Bkapi-Authorization", headerStr)
+                .build()
+
+            OkhttpUtils.doHttp(request).use {
+                if (!it.isSuccessful) {
+                    logger.warn("request failed, uri:($url)|response: ($it)")
+                    throw RemoteServiceException("request failed, response:($it)")
+                }
+                val responseStr = it.body!!.string()
+                val resp = objectMapper.readValue<BkMonitorResp>(responseStr)
+                if (resp.code != 200L || !resp.result) {
+                    // 请求错误
+                    logger.warn("request failed, url:($url)|response:($it)")
+                    throw RemoteServiceException("request failed, response:(${resp.message})")
+                }
+                logger.debug("request response：${objectMapper.writeValueAsString(resp.data)}")
+                return resp.data
+            }
         } catch (e: Exception) {
             logger.warn("requestBkMonitor error", e)
             null
-        }
-    }
-
-    private fun doRequestBkMonitor(body: Any): BkMonitorRespData? {
-        val url = "$bkMonitorGateway/time_series/unify_query"
-        val headerStr = objectMapper.writeValueAsString(
-            mapOf("bk_app_code" to bkMonitorAppCode, "bk_app_secret" to bkMonitorAppSecret)
-        ).replace("\\s".toRegex(), "")
-        val requestBody = objectMapper.writeValueAsString(body)
-            .toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
-
-        val request = Request.Builder()
-            .url(url)
-            .post(requestBody)
-            .addHeader("X-Bkapi-Authorization", headerStr)
-            .build()
-
-        OkhttpUtils.doHttp(request).use {
-            if (!it.isSuccessful) {
-                logger.warn("request failed, uri:($url)|response: ($it)")
-                throw RemoteServiceException("request failed, response:($it)")
-            }
-            val responseStr = it.body!!.string()
-            val resp = objectMapper.readValue<BkMonitorResp>(responseStr)
-            if (resp.code != 200L || !resp.result) {
-                // 请求错误
-                logger.warn("request failed, url:($url)|response:($it)")
-                throw RemoteServiceException("request failed, response:(${resp.message})")
-            }
-            logger.debug("request response：${objectMapper.writeValueAsString(resp.data)}")
-            return resp.data
         }
     }
 }
