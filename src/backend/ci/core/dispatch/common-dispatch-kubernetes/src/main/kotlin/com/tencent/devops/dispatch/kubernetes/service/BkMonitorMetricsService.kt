@@ -208,7 +208,7 @@ class BkMonitorMetricsService @Autowired constructor(
     ) {
         when(buildHistory.workloadType) {
             WorkloadType.DEPLOYMENT -> {
-                dispatchKubernetesJobHisDao.updateWorkloadUsage(
+                dispatchKubernetesBuildHisDao.updateWorkloadUsage(
                     dslContext = dslContext,
                     id = buildHistory.id,
                     cpuPercentile = cpuPercentile,
@@ -218,7 +218,7 @@ class BkMonitorMetricsService @Autowired constructor(
                 )
             }
             WorkloadType.JOB -> {
-                dispatchKubernetesBuildHisDao.updateWorkloadUsage(
+                dispatchKubernetesJobHisDao.updateWorkloadUsage(
                     dslContext = dslContext,
                     id = buildHistory.id,
                     cpuPercentile = cpuPercentile,
