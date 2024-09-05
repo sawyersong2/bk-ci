@@ -110,7 +110,7 @@ class KubernetesJobService @Autowired constructor(
         val result = kubernetesJobClient.createJob(userId, job)
         if (result.isNotOk() || result.data == null) {
             return DispatchTaskResp(
-                result.data?.taskId,
+                result.data?.taskId ?: "",
                 result.message
             )
         }

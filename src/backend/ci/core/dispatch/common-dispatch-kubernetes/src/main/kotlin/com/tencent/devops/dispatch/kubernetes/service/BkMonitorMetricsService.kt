@@ -103,6 +103,7 @@ class BkMonitorMetricsService @Autowired constructor(
             ).let(commonProcessor)
         }
 
+        // 如果当前构建内包含kubernetes job构建，则收集负载数据
         dispatchKubernetesJobHisDao.getBuildJobHistory(
             dslContext = dslContext,
             buildId = event.buildId,

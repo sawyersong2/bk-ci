@@ -31,6 +31,6 @@ import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackStatus
 
 data class DispatchTaskResp(
     val taskId: String,
-    val taskStatus: TaskCallbackStatus,
-    val errorMsg: String? = null
+    val errorMsg: String? = null,
+    val taskStatus: TaskCallbackStatus = TaskCallbackStatus.running
 )

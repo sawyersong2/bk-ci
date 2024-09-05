@@ -94,7 +94,7 @@ class BcsJobService @Autowired constructor(
         val result = bcsJobClient.createJob(userId, job)
         if (result.isNotOk() || result.data == null) {
             return DispatchTaskResp(
-                result.data?.taskId,
+                result.data?.taskId ?: "",
                 result.message
             )
         }
