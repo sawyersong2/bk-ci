@@ -27,7 +27,14 @@
 
 package com.tencent.devops.dispatch.kubernetes.api.builds
 
-import com.tencent.devops.common.api.auth.*
+import com.tencent.devops.common.api.auth.AUTH_HEADER_BUILD_ID
+import com.tencent.devops.common.api.auth.AUTH_HEADER_DEVOPS_CI_TASK_ID
+import com.tencent.devops.common.api.auth.AUTH_HEADER_DEVOPS_EXECUTE_COUNT
+import com.tencent.devops.common.api.auth.AUTH_HEADER_PIPELINE_ID
+import com.tencent.devops.common.api.auth.AUTH_HEADER_PROJECT_ID
+import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID
+import com.tencent.devops.common.api.auth.AUTH_HEADER_USER_ID_DEFAULT_VALUE
+import com.tencent.devops.common.api.auth.AUTH_HEADER_VM_SEQ_ID
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildImageReq
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildStatusResp

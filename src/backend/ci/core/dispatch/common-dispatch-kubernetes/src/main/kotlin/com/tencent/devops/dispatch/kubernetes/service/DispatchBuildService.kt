@@ -43,7 +43,15 @@ import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildDao
 import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildHisDao
 import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildPoolDao
 import com.tencent.devops.dispatch.kubernetes.dao.PerformanceOptionsDao
-import com.tencent.devops.dispatch.kubernetes.pojo.*
+import com.tencent.devops.dispatch.kubernetes.pojo.BK_BUILD_MACHINE_CREATION_FAILED_REFERENCE
+import com.tencent.devops.dispatch.kubernetes.pojo.BK_BUILD_MACHINE_STARTUP_FAILED
+import com.tencent.devops.dispatch.kubernetes.pojo.BK_BUILD_MACHINE_START_SUCCESS_WAIT_AGENT_START
+import com.tencent.devops.dispatch.kubernetes.pojo.BK_INTERFACE_REQUEST_TIMEOUT
+import com.tencent.devops.dispatch.kubernetes.pojo.BK_MACHINE_BUILD_COMPLETED_WAITING_FOR_STARTUP
+import com.tencent.devops.dispatch.kubernetes.pojo.Credential
+import com.tencent.devops.dispatch.kubernetes.pojo.DispatchBuilderStatus
+import com.tencent.devops.dispatch.kubernetes.pojo.Pool
+import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackStatus
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildImageReq
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchTaskResp
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildBuilderStatus

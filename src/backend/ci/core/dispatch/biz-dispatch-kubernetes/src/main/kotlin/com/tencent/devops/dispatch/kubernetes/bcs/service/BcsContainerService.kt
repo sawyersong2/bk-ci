@@ -315,10 +315,10 @@ class BcsContainerService @Autowired constructor(
 
     override fun waitTaskFinish(userId: String, taskId: String, needProxy: Boolean): DispatchBuildTaskStatus {
         val startResult = bcsTaskClient.waitTaskFinish(userId, taskId)
-        if (startResult.first == BcsTaskStatusEnum.SUCCEEDED) {
-            return DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.SUCCEEDED,"",null)
+        return if (startResult.first == BcsTaskStatusEnum.SUCCEEDED) {
+            DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.SUCCEEDED, "", null)
         } else {
-            return DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.FAILED, "", startResult.second)
+            DispatchBuildTaskStatus(DispatchBuildTaskStatusEnum.FAILED, "", startResult.second)
         }
     }
 

@@ -93,7 +93,7 @@ class BkMonitorMetricsService @Autowired constructor(
             dslContext = dslContext,
             buildId = event.buildId,
             vmSeqId = event.vmSeqId ?: "",
-            dispatchType = dockerRoutingType.name,
+            dispatchType = dockerRoutingType.name
         ).first()?.let {
             BuildHistory(
                 id = it.id,

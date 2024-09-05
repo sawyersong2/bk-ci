@@ -50,7 +50,6 @@ import com.tencent.devops.dispatch.kubernetes.pojo.base.DebugResponse
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildBuilderStatus
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildOperateBuilderParams
 import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildOperateBuilderType
-import com.tencent.devops.dispatch.kubernetes.pojo.builds.DispatchBuildTaskStatusEnum
 import com.tencent.devops.dispatch.kubernetes.pojo.debug.DispatchBuilderDebugStatus
 import com.tencent.devops.dispatch.kubernetes.service.factory.ContainerServiceFactory
 import com.tencent.devops.dispatch.kubernetes.service.factory.JobServiceFactory

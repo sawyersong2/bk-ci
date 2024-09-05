@@ -27,7 +27,6 @@
 
 package com.tencent.devops.dispatch.kubernetes.service
 
-
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.web.utils.I18nUtil
 import com.tencent.devops.dispatch.kubernetes.pojo.BK_KUBERNETES_TASK_EXECUTE_TIMEOUT
@@ -87,7 +86,6 @@ class DispatchBaseTaskService @Autowired constructor(
             }
         }
     }
-
 
     companion object {
         private val logger = LoggerFactory.getLogger(DispatchBaseTaskService::class.java)

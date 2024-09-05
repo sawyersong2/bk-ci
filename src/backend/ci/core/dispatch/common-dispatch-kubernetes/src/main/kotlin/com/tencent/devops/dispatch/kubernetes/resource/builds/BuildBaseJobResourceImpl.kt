@@ -38,7 +38,6 @@ import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchTaskResp
 import com.tencent.devops.dispatch.kubernetes.service.DispatchBaseJobService
 import com.tencent.devops.dispatch.kubernetes.service.DispatchBuildService
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 
 @RestResource
 class BuildBaseJobResourceImpl @Autowired constructor(
