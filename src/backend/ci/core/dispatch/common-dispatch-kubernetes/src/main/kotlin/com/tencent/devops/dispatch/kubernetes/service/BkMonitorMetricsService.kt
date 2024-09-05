@@ -37,7 +37,11 @@ import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.dispatch.sdk.pojo.docker.DockerRoutingType
 import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesBuildHisDao
 import com.tencent.devops.dispatch.kubernetes.dao.DispatchKubernetesJobHisDao
-import com.tencent.devops.dispatch.kubernetes.pojo.*
+import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRequestBody
+import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRequestBodyQueryConfigs
+import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorResp
+import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRespData
+import com.tencent.devops.dispatch.kubernetes.pojo.BkMonitorRespDataSeries
 import com.tencent.devops.process.pojo.mq.PipelineAgentShutdownEvent
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
@@ -128,7 +132,6 @@ class BkMonitorMetricsService @Autowired constructor(
         DEPLOYMENT, JOB
     }
 
-
     private data class BuildHistory(
         val id: Long,
         val podName: String,
@@ -212,7 +215,7 @@ class BkMonitorMetricsService @Autowired constructor(
             .setScale(2, RoundingMode.HALF_UP).toDouble()
         val memPercentileFormat = BigDecimal.valueOf(memoryPercentile).divide(BigDecimal.valueOf(1024 * 1024))
             .setScale(2, RoundingMode.HALF_UP).toDouble()
-        when(buildHistory.workloadType) {
+        when (buildHistory.workloadType) {
             WorkloadType.DEPLOYMENT -> {
                 dispatchKubernetesBuildHisDao.updateWorkloadUsage(
                     dslContext = dslContext,
@@ -257,7 +260,6 @@ class BkMonitorMetricsService @Autowired constructor(
             lowerValue + (index - lowerIndex) * (upperValue - lowerValue)
         }
     }
-
 
     private fun requestBkMonitor(body: Any): BkMonitorRespData? {
         return try {
