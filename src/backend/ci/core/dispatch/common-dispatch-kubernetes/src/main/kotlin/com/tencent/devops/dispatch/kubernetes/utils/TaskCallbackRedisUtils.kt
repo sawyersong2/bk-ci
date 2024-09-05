@@ -55,7 +55,7 @@ class TaskCallbackRedisUtils @Autowired constructor(
         val result = redisOperation.get("${taskCallbackKey()}:$taskId")
         logger.info("${taskCallbackKey()}:$taskId get task: $result")
         return if (result != null) {
-            return objectMapper.readValue(result, TaskCallbackInfo::class.java)
+            objectMapper.readValue(result, TaskCallbackInfo::class.java)
         } else {
             null
         }
