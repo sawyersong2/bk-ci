@@ -47,6 +47,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import kotlin.streams.toList
@@ -206,14 +208,18 @@ class BkMonitorMetricsService @Autowired constructor(
         memoryPercentile: Double,
         memoryMetrics: List<Double>
     ) {
+        val cpuPercentileFormat = BigDecimal.valueOf(cpuPercentile)
+            .setScale(2, RoundingMode.HALF_UP).toDouble()
+        val memPercentileFormat = BigDecimal.valueOf(memoryPercentile).divide(BigDecimal.valueOf(1024 * 1024))
+            .setScale(2, RoundingMode.HALF_UP).toDouble()
         when(buildHistory.workloadType) {
             WorkloadType.DEPLOYMENT -> {
                 dispatchKubernetesBuildHisDao.updateWorkloadUsage(
                     dslContext = dslContext,
                     id = buildHistory.id,
-                    cpuPercentile = cpuPercentile,
+                    cpuPercentile = cpuPercentileFormat,
                     cpuMetrics = cpuMetrics.toString(),
-                    memPercentile = memoryPercentile,
+                    memPercentile = memPercentileFormat,
                     memMetrics = memoryMetrics.toString()
                 )
             }
@@ -221,9 +227,9 @@ class BkMonitorMetricsService @Autowired constructor(
                 dispatchKubernetesJobHisDao.updateWorkloadUsage(
                     dslContext = dslContext,
                     id = buildHistory.id,
-                    cpuPercentile = cpuPercentile,
+                    cpuPercentile = cpuPercentileFormat,
                     cpuMetrics = cpuMetrics.toString(),
-                    memPercentile = memoryPercentile,
+                    memPercentile = memPercentileFormat,
                     memMetrics = memoryMetrics.toString()
                 )
             }
