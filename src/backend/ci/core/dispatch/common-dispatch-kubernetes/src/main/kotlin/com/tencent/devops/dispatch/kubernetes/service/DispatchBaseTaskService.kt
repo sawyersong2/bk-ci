@@ -60,7 +60,7 @@ class DispatchBaseTaskService @Autowired constructor(
         }
         return DispatchBuildStatusResp(
             status = TaskCallbackStatus.running.name,
-            errorMsg = "",
+            errorMsg = ""
         )
     }
 
