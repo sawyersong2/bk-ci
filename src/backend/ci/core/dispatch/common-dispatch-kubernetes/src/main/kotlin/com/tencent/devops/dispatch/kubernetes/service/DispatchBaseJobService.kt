@@ -68,7 +68,7 @@ class DispatchBaseJobService @Autowired constructor(
         val logPrefix = "$userId|$projectId|$pipelineId|$buildId|$vmSeqId|$executeCount|$taskId|${jobReq.jobTag}"
         logger.info("$logPrefix createJob: $jobReq")
         val jobResp = jobServiceFactory.load(projectId).createJob(userId, jobReq)
-        if (jobResp.taskId.isNotEmpty()) {
+        if (jobResp.taskId.isEmpty()) {
             logger.error("$logPrefix createJob failed. ${jobResp.errorMsg}")
             return DispatchTaskResp(
                 taskId = "",
