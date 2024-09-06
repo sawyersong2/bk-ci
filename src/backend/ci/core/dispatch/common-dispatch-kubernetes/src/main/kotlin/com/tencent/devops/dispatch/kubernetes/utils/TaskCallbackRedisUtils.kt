@@ -43,17 +43,17 @@ class TaskCallbackRedisUtils @Autowired constructor(
 
     /*-------------------------*/
     fun refreshTaskCallbackInfo(taskCallbackInfo: TaskCallbackInfo) {
-        logger.info("RefreshTaskCallbackInfo hset(${taskCallbackKey()}:${taskCallbackInfo.taskId})")
-        redisOperation.set(
-            key = "${taskCallbackKey()}:${taskCallbackInfo.taskId}",
-            value = JsonUtil.toJson(taskCallbackInfo),
-            expiredInSecond = EXPIRED_SECOND
+        redisOperation.hset(
+            key = TASK_CALLBACK_KEY,
+            hashKey = taskCallbackInfo.taskId,
+            values = JsonUtil.toJson(taskCallbackInfo)
         )
+        redisOperation.expire(key = "$TASK_CALLBACK_KEY:${taskCallbackInfo.taskId}", expiredInSecond = EXPIRED_SECOND)
     }
 
     fun getTaskCallbackInfo(taskId: String): TaskCallbackInfo? {
-        val result = redisOperation.get("${taskCallbackKey()}:$taskId")
-        logger.info("${taskCallbackKey()}:$taskId get task: $result")
+        val result = redisOperation.hget(TASK_CALLBACK_KEY, taskId)
+        logger.info("$TASK_CALLBACK_KEY:$taskId get task: $result")
         return if (result != null) {
             objectMapper.readValue(result, TaskCallbackInfo::class.java)
         } else {
@@ -62,16 +62,13 @@ class TaskCallbackRedisUtils @Autowired constructor(
     }
 
     fun deleteTaskCallbackInfo(taskId: String) {
-        logger.info("DeleteTaskCallbackInfo hdelete(${taskCallbackKey()}:$taskId)")
-        redisOperation.delete("${taskCallbackKey()}:$taskId")
-    }
-
-    private fun taskCallbackKey(): String {
-        return "dispatch:kubernetes:task_callback_info"
+        logger.info("DeleteTaskCallbackInfo hdelete($TASK_CALLBACK_KEY:$taskId)")
+        redisOperation.hdelete(TASK_CALLBACK_KEY, taskId)
     }
 
     companion object {
         private val logger = LoggerFactory.getLogger(TaskCallbackRedisUtils::class.java)
-        private val EXPIRED_SECOND = TimeUnit.DAYS.toSeconds(1)
+        private val EXPIRED_SECOND = TimeUnit.MINUTES.toSeconds(1)
+        private const val TASK_CALLBACK_KEY = "dispatch:kubernetes:task_callback_info"
     }
 }

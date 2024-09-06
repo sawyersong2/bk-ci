@@ -34,7 +34,6 @@ import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackAction
 import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackInfo
 import com.tencent.devops.dispatch.kubernetes.pojo.TaskCallbackStatus
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchBuildStatusResp
-import com.tencent.devops.dispatch.kubernetes.service.factory.ContainerServiceFactory
 import com.tencent.devops.dispatch.kubernetes.utils.TaskCallbackRedisUtils
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -42,7 +41,6 @@ import org.springframework.stereotype.Service
 
 @Service
 class DispatchBaseTaskService @Autowired constructor(
-    private val containerServiceFactory: ContainerServiceFactory,
     private val taskCallbackRedisUtils: TaskCallbackRedisUtils
 ) {
 
@@ -52,7 +50,18 @@ class DispatchBaseTaskService @Autowired constructor(
         buildId: String,
         taskId: String
     ): DispatchBuildStatusResp {
-        return containerServiceFactory.load(projectId).getTaskStatus(userId, taskId)
+        // 从redis中获取任务状态,只要状态存在说明已回调成功
+        val taskCallbackInfo = taskCallbackRedisUtils.getTaskCallbackInfo(taskId)
+        if (taskCallbackInfo?.status != null) {
+            return DispatchBuildStatusResp(
+                status = taskCallbackInfo.status.name,
+                errorMsg = taskCallbackInfo.message,
+            )
+        }
+        return DispatchBuildStatusResp(
+            status = TaskCallbackStatus.running.name,
+            errorMsg = "",
+        )
     }
 
     fun taskCallback(taskCallbackInfo: TaskCallbackInfo): Boolean {
@@ -81,7 +90,6 @@ class DispatchBaseTaskService @Autowired constructor(
             val taskCallbackInfo = taskCallbackRedisUtils.getTaskCallbackInfo(taskId)
             if (taskCallbackInfo?.status != null) {
                 logger.info("Loop task taskId: $taskId, status: ${JsonUtil.toJson(taskCallbackInfo)}")
-                taskCallbackRedisUtils.deleteTaskCallbackInfo(taskId)
                 return taskCallbackInfo
             }
         }

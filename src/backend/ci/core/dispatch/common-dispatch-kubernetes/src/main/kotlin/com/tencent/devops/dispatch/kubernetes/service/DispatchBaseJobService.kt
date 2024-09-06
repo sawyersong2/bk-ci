@@ -34,6 +34,8 @@ import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchJobLogResp
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchJobReq
 import com.tencent.devops.dispatch.kubernetes.pojo.base.DispatchTaskResp
 import com.tencent.devops.dispatch.kubernetes.service.factory.JobServiceFactory
+import com.tencent.devops.dispatch.kubernetes.utils.ThreadPoolName
+import com.tencent.devops.dispatch.kubernetes.utils.ThreadPoolUtils
 import org.jooq.DSLContext
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -76,34 +78,28 @@ class DispatchBaseJobService @Autowired constructor(
                 errorMsg = jobResp.errorMsg
             )
         }
-        val taskCallbackInfo = dispatchBaseTaskService.waitTaskFinish(userId, jobResp.taskId!!)
-        // 根据回调信息，记录负载集群和域名等信息
-        dispatchKubernetesJobHisDao.updateWorkloadName(
-            dslContext = dslContext,
-            buildId = buildId,
-            vmSeqId = vmSeqId,
-            executeCount = executeCount,
-            taskId = taskId,
-            jobTag = jobReq.jobTag ?: "",
-            podName = taskCallbackInfo.podName,
-            clusterId = kubernetesClusterId,
-            namespace = taskCallbackInfo.namespace
-        )
 
-        return if (taskCallbackInfo.status == TaskCallbackStatus.succeeded) {
-            logger.info("$logPrefix createJob success")
-            DispatchTaskResp(
-                taskId = jobResp.taskId,
-                taskStatus = TaskCallbackStatus.succeeded
-            )
-        } else {
-            logger.info("$logPrefix createJob failed. ${taskCallbackInfo.message}")
-            DispatchTaskResp(
-                taskId = jobResp.taskId,
-                taskStatus = TaskCallbackStatus.failed,
-                errorMsg = taskCallbackInfo.message
+        ThreadPoolUtils.getInstance().getThreadPool(ThreadPoolName.WAIT_TASK_FINISH.name).execute {
+            val taskCallbackInfo = dispatchBaseTaskService.waitTaskFinish(userId, jobResp.taskId)
+            // 根据回调信息，记录负载集群和域名等信息
+            dispatchKubernetesJobHisDao.updateWorkloadName(
+                dslContext = dslContext,
+                buildId = buildId,
+                vmSeqId = vmSeqId,
+                executeCount = executeCount,
+                taskId = taskId,
+                jobTag = jobReq.jobTag ?: "",
+                podName = taskCallbackInfo.podName,
+                clusterId = kubernetesClusterId,
+                namespace = taskCallbackInfo.namespace
             )
         }
+
+        return DispatchTaskResp(
+            taskId = jobResp.taskId,
+            taskStatus = TaskCallbackStatus.running
+        )
+
     }
 
     fun getJobStatus(
