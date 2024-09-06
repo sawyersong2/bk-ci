@@ -55,7 +55,7 @@ class DispatchBaseTaskService @Autowired constructor(
         if (taskCallbackInfo?.status != null) {
             return DispatchBuildStatusResp(
                 status = taskCallbackInfo.status.name,
-                errorMsg = taskCallbackInfo.message,
+                errorMsg = taskCallbackInfo.message
             )
         }
         return DispatchBuildStatusResp(

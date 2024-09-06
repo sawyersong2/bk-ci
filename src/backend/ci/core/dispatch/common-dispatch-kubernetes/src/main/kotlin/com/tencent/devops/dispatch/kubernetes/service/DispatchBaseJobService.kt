@@ -99,7 +99,6 @@ class DispatchBaseJobService @Autowired constructor(
             taskId = jobResp.taskId,
             taskStatus = TaskCallbackStatus.running
         )
-
     }
 
     fun getJobStatus(
