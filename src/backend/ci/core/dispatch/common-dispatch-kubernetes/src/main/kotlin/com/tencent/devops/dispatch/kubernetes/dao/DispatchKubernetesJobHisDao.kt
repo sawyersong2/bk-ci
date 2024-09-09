@@ -36,7 +36,7 @@ import org.springframework.stereotype.Repository
 @Repository
 class DispatchKubernetesJobHisDao {
 
-    fun create(
+    fun createJobHistory(
         dslContext: DSLContext,
         projectId: String,
         pipelineId: String,

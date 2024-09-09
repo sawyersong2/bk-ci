@@ -54,6 +54,15 @@ class DispatchBaseJobService @Autowired constructor(
         private val logger = LoggerFactory.getLogger(DispatchBaseJobService::class.java)
     }
 
+    @Value("\${kubernetes.resources.job.cpu}")
+    var cpu: Double = 32.0
+
+    @Value("\${kubernetes.resources.job.memory}")
+    var memory: Int = 65535
+
+    @Value("\${kubernetes.resources.job.disk}")
+    var disk: Int = 500
+
     @Value("\${kubernetes.clusterId:}")
     val kubernetesClusterId: String = ""
 
@@ -69,6 +78,21 @@ class DispatchBaseJobService @Autowired constructor(
     ): DispatchTaskResp {
         val logPrefix = "$userId|$projectId|$pipelineId|$buildId|$vmSeqId|$executeCount|$taskId|${jobReq.jobTag}"
         logger.info("$logPrefix createJob: $jobReq")
+        dispatchKubernetesJobHisDao.createJobHistory(
+            dslContext = dslContext,
+            projectId = projectId,
+            pipelineId = pipelineId,
+            buildId = buildId,
+            vmSeqId = vmSeqId,
+            executeCount = executeCount,
+            taskId = taskId,
+            jobTag = jobReq.jobTag ?: "",
+            jobName = jobReq.alias,
+            cpu = cpu,
+            memory = memory.toDouble(),
+            disk = disk.toString()
+        )
+
         val jobResp = jobServiceFactory.load(projectId).createJob(userId, jobReq)
         if (jobResp.taskId.isEmpty()) {
             logger.error("$logPrefix createJob failed. ${jobResp.errorMsg}")
