@@ -86,7 +86,7 @@ class DispatchBaseJobService @Autowired constructor(
             vmSeqId = vmSeqId,
             executeCount = executeCount,
             taskId = taskId,
-            jobTag = jobReq.jobTag ?: "",
+            jobTag = jobReq.jobTag ?: jobReq.image.substringBefore(":"),
             jobName = jobReq.alias,
             cpu = cpu,
             memory = memory.toDouble(),
