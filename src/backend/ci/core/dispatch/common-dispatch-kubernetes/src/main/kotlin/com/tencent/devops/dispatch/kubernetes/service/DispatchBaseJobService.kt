@@ -101,7 +101,7 @@ class DispatchBaseJobService @Autowired constructor(
             jobName = jobReq.alias,
             cpu = limitCpu,
             memory = limitMemory.toDouble(),
-            disk =limitDisk.toString()
+            disk = limitDisk.toString()
         )
 
         val jobResp = jobServiceFactory.load(projectId).createJob(userId, jobReq)
