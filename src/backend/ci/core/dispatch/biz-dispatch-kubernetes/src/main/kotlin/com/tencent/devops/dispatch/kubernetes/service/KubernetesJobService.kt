@@ -44,20 +44,10 @@ import com.tencent.devops.dispatch.kubernetes.pojo.isFailed
 import com.tencent.devops.dispatch.kubernetes.pojo.isRunning
 import com.tencent.devops.dispatch.kubernetes.pojo.isSucceeded
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 
 class KubernetesJobService @Autowired constructor(
     private val kubernetesJobClient: KubernetesJobClient
 ) : JobService {
-
-    @Value("\${kubernetes.resources.job.cpu}")
-    var cpu: Double = 32.0
-
-    @Value("\${kubernetes.resources.job.memory}")
-    var memory: Int = 65535
-
-    @Value("\${kubernetes.resources.job.disk}")
-    var disk: Int = 500
 
     override val slaveEnv = "Kubernetes"
 
@@ -86,10 +76,10 @@ class KubernetesJobService @Autowired constructor(
                     requestDisk = "${DEFAULT_JOB_REQUEST_DISK}G",
                     requestDiskIO = "0",
                     requestMem = "${DEFAULT_JOB_REQUEST_MEM}Mi",
-                    limitCpu = cpu.toString(),
-                    limitDisk = "${disk}G",
+                    limitCpu = limitCpu.toString(),
+                    limitDisk = "${limitDisk}G",
                     limitDiskIO = "1",
-                    limitMem = "${memory}Mi"
+                    limitMem = "${limitMemory}Mi"
                 ),
                 env = params?.env,
                 command = params?.command,

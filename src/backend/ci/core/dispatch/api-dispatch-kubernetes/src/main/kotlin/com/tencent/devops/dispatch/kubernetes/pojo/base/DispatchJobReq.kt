@@ -41,7 +41,10 @@ data class DispatchJobReq(
     val params: JobParam? = null,
     val podNameSelector: String,
     val mountPath: String? = null,
-    val jobTag: String? = null
+    val jobTag: String? = null,
+    var limitCpu: Double? = null,
+    var limitMemory: Int? = null,
+    var limitDisk: Int? = null
 )
 
 data class JobParam(

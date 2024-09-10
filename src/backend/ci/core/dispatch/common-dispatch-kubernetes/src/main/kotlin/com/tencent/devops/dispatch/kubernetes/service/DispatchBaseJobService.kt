@@ -52,6 +52,9 @@ class DispatchBaseJobService @Autowired constructor(
 
     companion object {
         private val logger = LoggerFactory.getLogger(DispatchBaseJobService::class.java)
+        private const val MAX_LIMIT_CPU = 32.0
+        private const val MAX_LIMIT_MEMORY = 65535
+        private const val MAX_LIMIT_DISK = 100
     }
 
     @Value("\${kubernetes.resources.job.cpu}")
@@ -78,6 +81,14 @@ class DispatchBaseJobService @Autowired constructor(
     ): DispatchTaskResp {
         val logPrefix = "$userId|$projectId|$pipelineId|$buildId|$vmSeqId|$executeCount|$taskId|${jobReq.jobTag}"
         logger.info("$logPrefix createJob: $jobReq")
+        val limitCpu = jobReq.limitCpu?.coerceAtMost(MAX_LIMIT_CPU) ?: cpu
+        val limitMemory = jobReq.limitMemory?.coerceAtMost(MAX_LIMIT_MEMORY) ?: memory
+        val limitDisk = jobReq.limitDisk?.coerceAtMost(MAX_LIMIT_DISK) ?: disk
+
+        jobReq.limitCpu = limitCpu
+        jobReq.limitMemory = limitMemory
+        jobReq.limitDisk = limitDisk
+
         dispatchKubernetesJobHisDao.createJobHistory(
             dslContext = dslContext,
             projectId = projectId,
@@ -88,9 +99,9 @@ class DispatchBaseJobService @Autowired constructor(
             taskId = taskId,
             jobTag = jobReq.jobTag ?: jobReq.image.substringBefore(":"),
             jobName = jobReq.alias,
-            cpu = cpu,
-            memory = memory.toDouble(),
-            disk = disk.toString()
+            cpu = limitCpu,
+            memory = limitMemory.toDouble(),
+            disk =limitDisk.toString()
         )
 
         val jobResp = jobServiceFactory.load(projectId).createJob(userId, jobReq)
