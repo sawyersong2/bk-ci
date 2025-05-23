@@ -44,7 +44,12 @@ import com.tencent.devops.common.api.util.timestampmilli
 import com.tencent.devops.common.auth.api.AuthResourceType
 import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.client.ClientTokenService
+import com.tencent.devops.common.event.dispatcher.SampleEventDispatcher
+import com.tencent.devops.common.event.enums.ActionType
+import com.tencent.devops.common.event.enums.PipelineBuildStatusBroadCastEventType
+import com.tencent.devops.common.event.pojo.pipeline.PipelineBuildStatusBroadCastEvent
 import com.tencent.devops.common.notify.enums.NotifyType
+import com.tencent.devops.common.pipeline.enums.BuildStatus
 import com.tencent.devops.common.pipeline.type.agent.ThirdPartyAgentDockerInfoDispatch
 import com.tencent.devops.common.redis.RedisOperation
 import com.tencent.devops.common.service.utils.HomeHostUtil
@@ -69,12 +74,6 @@ import com.tencent.devops.model.dispatch.tables.records.TDispatchThirdpartyAgent
 import com.tencent.devops.notify.api.service.ServiceNotifyMessageTemplateResource
 import com.tencent.devops.notify.pojo.SendNotifyMessageTemplateRequest
 import com.tencent.devops.process.api.service.ServiceBuildResource
-import org.jooq.DSLContext
-import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.dao.DeadlockLoserDataAccessException
-import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CompletableFuture
@@ -82,7 +81,13 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import javax.ws.rs.NotFoundException
+import jakarta.ws.rs.NotFoundException
+import org.jooq.DSLContext
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.dao.DeadlockLoserDataAccessException
+import org.springframework.stereotype.Service
 
 @Service
 @Suppress("ALL")
@@ -94,7 +99,8 @@ class ThirdPartyAgentService @Autowired constructor(
     private val thirdPartyAgentBuildDao: ThirdPartyAgentBuildDao,
     private val thirdPartyAgentDockerService: ThirdPartyAgentDockerService,
     private val tokenService: ClientTokenService,
-    private val commonUtil: TPACommonUtil
+    private val commonUtil: TPACommonUtil,
+    private val pipelineEventDispatcher: SampleEventDispatcher
 ) {
     @Value("\${thirdagent.workerErrorTemplate:#{null}}")
     val workerErrorRtxTemplate: String? = null
@@ -241,6 +247,24 @@ class ThirdPartyAgentService @Autowired constructor(
                                 " claim failed, cause: ${e.message} agent project($projectId)"
                     )
                 }
+                pipelineEventDispatcher.dispatch(
+                    // 第三方构建机启动
+                    PipelineBuildStatusBroadCastEvent(
+                        source = "third-party-agent-start-$agentId", projectId = build.projectId,
+                        pipelineId = build.pipelineId, userId = "",
+                        buildId = build.buildId, taskId = null, actionType = ActionType.START,
+                        containerHashId = build.containerHashId, jobId = build.jobId, stageId = null,
+                        stepId = null, atomCode = null, executeCount = build.executeCount,
+                        buildStatus = BuildStatus.RUNNING.name,
+                        type = PipelineBuildStatusBroadCastEventType.BUILD_AGENT_START,
+                        labels = mapOf(
+                            "agentId" to build.agentId,
+                            "envHashId" to (build.envId?.let { HashUtil.encodeLongId(it) } ?: ""),
+                            "nodeHashId" to (build.nodeId?.let { HashUtil.encodeLongId(it) } ?: ""),
+                            "agentIp" to build.agentIp
+                        )
+                    )
+                )
 
                 // 第三方构建机docker启动获取镜像凭据
                 val dockerInfo = if (build.dockerInfo == null) {
@@ -386,10 +410,10 @@ class ThirdPartyAgentService @Autowired constructor(
         }
     }
 
-    fun finishBuild(buildId: String, vmSeqId: String?, buildResult: Boolean) {
+    fun finishBuild(buildId: String, vmSeqId: String?, buildResult: Boolean, executeCount: Int?) {
         val now = LocalDateTime.now().timestampmilli()
         if (vmSeqId.isNullOrBlank()) {
-            val records = thirdPartyAgentBuildDao.list(dslContext, buildId)
+            val records = thirdPartyAgentBuildDao.list(dslContext, buildId, executeCount)
             if (records.isEmpty()) {
                 return
             }
@@ -407,7 +431,12 @@ class ThirdPartyAgentService @Autowired constructor(
                 finishBuild(record, buildResult)
             }
         } else {
-            val record = thirdPartyAgentBuildDao.get(dslContext, buildId, vmSeqId) ?: return
+            val record = thirdPartyAgentBuildDao.getWithExecuteCount(
+                dslContext = dslContext,
+                buildId = buildId,
+                vmSeqId = vmSeqId,
+                executeCount = executeCount
+            ) ?: return
             // 取消时兜底结束时间
             commonUtil.updateQueueTime(
                 projectId = record.projectId,
@@ -465,6 +494,13 @@ class ThirdPartyAgentService @Autowired constructor(
             )
         }
         return Page(pageNotNull, pageSizeNotNull, agentBuildCount, agentBuilds)
+    }
+
+    fun listLatestBuildPipelines(agentIds: List<String>): List<AgentBuildInfo> {
+        return thirdPartyAgentBuildDao.listLatestBuildPipelines(
+            dslContext = dslContext,
+            agentIds = agentIds
+        )
     }
 
     private fun finishBuild(record: TDispatchThirdpartyAgentBuildRecord, success: Boolean) {

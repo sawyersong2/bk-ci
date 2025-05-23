@@ -318,6 +318,9 @@
                     },
                     "always" : {
                       "type" : "boolean"
+                    },
+                    "start-params" : {
+                      "type" : "object"
                     }
                   }
                 }
@@ -374,6 +377,9 @@
                   },
                   "always" : {
                     "type" : "boolean"
+                  },
+                  "start-params" : {
+                    "type" : "object"
                   }
                 }
               } ]
@@ -1009,6 +1015,9 @@
                   },
                   "always" : {
                     "type" : "boolean"
+                  },
+                  "start-params" : {
+                    "type" : "object"
                   }
                 }
               }
@@ -1065,6 +1074,9 @@
                 },
                 "always" : {
                   "type" : "boolean"
+                },
+                "start-params" : {
+                  "type" : "object"
                 }
               }
             } ]
@@ -1427,6 +1439,16 @@
                   "type" : "number"
                 }, {
                   "type" : "boolean"
+                }, {
+                  "type" : "object",
+                  "properties" : {
+                    "repo-name" : {
+                      "type" : "string"
+                    },
+                    "branch" : {
+                      "type" : "string"
+                    }
+                  }
                 } ]
               },
               "readonly" : {
@@ -1450,7 +1472,7 @@
                     "type" : "string"
                   },
                   "type" : {
-                    "enum" : [ "vuex-input", "vuex-textarea", "selector", "checkbox", "boolean", "time-picker", "company-staff-input", "git-ref", "code-lib", "container-type", "artifactory", "sub-pipeline", "custom-file", "tips" ]
+                    "enum" : [ "vuex-input", "vuex-textarea", "selector", "checkbox", "boolean", "time-picker", "company-staff-input", "git-ref", "code-lib", "container-type", "artifactory", "sub-pipeline", "custom-file", "tips", "repo-ref" ]
                   },
                   "options" : {
                     "type" : "array",
@@ -1469,7 +1491,13 @@
                           } ]
                         },
                         "label" : {
-                          "type" : "string"
+                          "anyOf" : [ {
+                            "type" : "string"
+                          }, {
+                            "type" : "number"
+                          }, {
+                            "type" : "boolean"
+                          } ]
                         },
                         "description" : {
                           "type" : "string"
@@ -1506,6 +1534,9 @@
                     }
                   },
                   "description" : {
+                    "type" : "string"
+                  },
+                  "group" : {
                     "type" : "string"
                   },
                   "multiple" : {
@@ -1583,6 +1614,16 @@
                 "type" : "number"
               }, {
                 "type" : "boolean"
+              }, {
+                "type" : "object",
+                "properties" : {
+                  "repo-name" : {
+                    "type" : "string"
+                  },
+                  "branch" : {
+                    "type" : "string"
+                  }
+                }
               } ]
             },
             "readonly" : {
@@ -1609,7 +1650,7 @@
                   "type" : "string"
                 },
                 "type" : {
-                  "enum" : [ "vuex-input", "vuex-textarea", "selector", "checkbox", "boolean", "time-picker", "company-staff-input", "git-ref", "code-lib", "container-type", "artifactory", "sub-pipeline", "custom-file", "tips" ]
+                  "enum" : [ "vuex-input", "vuex-textarea", "selector", "checkbox", "boolean", "time-picker", "company-staff-input", "git-ref", "code-lib", "container-type", "artifactory", "sub-pipeline", "custom-file", "tips", "repo-ref" ]
                 },
                 "options" : {
                   "type" : "array",
@@ -1628,7 +1669,13 @@
                         } ]
                       },
                       "label" : {
-                        "type" : "string"
+                        "anyOf" : [ {
+                          "type" : "string"
+                        }, {
+                          "type" : "number"
+                        }, {
+                          "type" : "boolean"
+                        } ]
                       },
                       "description" : {
                         "type" : "string"
@@ -1665,6 +1712,9 @@
                   }
                 },
                 "description" : {
+                  "type" : "string"
+                },
+                "group" : {
                   "type" : "string"
                 },
                 "multiple" : {
@@ -1980,6 +2030,9 @@
                           },
                           "gpus" : {
                             "type" : "string"
+                          },
+                          "privileged" : {
+                            "type" : "string"
                           }
                         }
                       },
@@ -2138,6 +2191,9 @@
       }
     },
     "disable-pipeline" : {
+      "type" : "boolean"
+    },
+    "fail-if-variable-invalid" : {
       "type" : "boolean"
     },
     "recommended-version" : {
@@ -2470,6 +2526,9 @@
                           },
                           "gpus" : {
                             "type" : "string"
+                          },
+                          "privileged" : {
+                            "type" : "string"
                           }
                         }
                       },
@@ -2493,6 +2552,9 @@
                   }
                 }
               } ]
+            },
+            "show-runs-on" : {
+              "type" : "boolean"
             },
             "services" : {
               "type" : "object",
@@ -2563,37 +2625,35 @@
                       }, {
                         "type" : "string"
                       } ]
-                    },
-                    "properties" : {
-                      "include" : {
-                        "oneOf" : [ {
-                          "type" : "array",
-                          "items" : {
-                            "type" : "object",
-                            "additionalProperties" : {
-                              "anyOf" : [ {
-                                "type" : "string"
-                              }, {
-                                "type" : "number"
-                              }, {
-                                "type" : "boolean"
-                              } ]
-                            }
-                          }
-                        }, {
+                    }
+                  }, {
+                    "type" : "string"
+                  } ]
+                },
+                "include" : {
+                  "oneOf" : [ {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "additionalProperties" : {
+                        "anyOf" : [ {
                           "type" : "string"
-                        } ]
-                      },
-                      "exclude" : {
-                        "oneOf" : [ {
-                          "type" : "array",
-                          "items" : {
-                            "type" : "object"
-                          }
                         }, {
-                          "type" : "string"
+                          "type" : "number"
+                        }, {
+                          "type" : "boolean"
                         } ]
                       }
+                    }
+                  }, {
+                    "type" : "string"
+                  } ]
+                },
+                "exclude" : {
+                  "oneOf" : [ {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object"
                     }
                   }, {
                     "type" : "string"

@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import java.time.format.DateTimeFormatter
-import javax.ws.rs.BadRequestException
+import jakarta.ws.rs.BadRequestException
 
 @Suppress("ALL")
 @Service
@@ -140,8 +140,7 @@ class DispatchDockerService @Autowired constructor(
         logger.info("$userId update all docker enable.")
         val dockerUnavailableList = pipelineDockerIPInfoDao.getDockerIpList(
             dslContext = dslContext,
-            enable = false,
-            grayEnv = gray.isGray()
+            enable = false
         )
 
         dockerUnavailableList.forEach {

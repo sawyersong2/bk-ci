@@ -27,7 +27,9 @@
 
 package com.tencent.devops.process.api
 
+import com.tencent.devops.common.api.enums.RepositoryConfig
 import com.tencent.devops.common.api.enums.RepositoryType
+import com.tencent.devops.common.api.enums.ScmType
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.pipeline.pojo.BuildFormValue
@@ -41,6 +43,8 @@ import com.tencent.devops.repository.api.ServiceRepositoryResource
 import com.tencent.devops.repository.pojo.enums.Permission
 import com.tencent.devops.common.pipeline.pojo.BuildEnvParameters
 import com.tencent.devops.common.pipeline.pojo.BuildParameterGroup
+import com.tencent.devops.process.pojo.pipeline.PipelineBuildParamFormProp
+import com.tencent.devops.process.service.builds.PipelineBuildFacadeService
 import com.tencent.devops.process.utils.PipelineVarUtil
 import com.tencent.devops.process.webhook.TriggerBuildParamUtils
 import org.slf4j.LoggerFactory
@@ -51,7 +55,8 @@ import org.springframework.beans.factory.annotation.Autowired
 class UserBuildParametersResourceImpl @Autowired constructor(
     private val client: Client,
     private val pipelineListFacadeService: PipelineListFacadeService,
-    private val scmProxyService: ScmProxyService
+    private val scmProxyService: ScmProxyService,
+    private val pipelineBuildFacadeService: PipelineBuildFacadeService
 ) : UserBuildParametersResource {
 
     companion object {
@@ -187,8 +192,59 @@ class UserBuildParametersResourceImpl @Autowired constructor(
         repositoryType: RepositoryType?,
         search: String?
     ): Result<List<BuildFormValue>> {
-        val result = mutableListOf<String>()
         val repositoryConfig = RepositoryConfigUtils.buildConfig(repositoryId, repositoryType)
+        return Result(
+            getGitRefs(
+                projectId = projectId,
+                repositoryConfig = repositoryConfig,
+                search = search
+            ).map { BuildFormValue(it, it) }
+        )
+    }
+
+    override fun listRepoRefs(
+        projectId: String,
+        repositoryId: String,
+        repositoryType: RepositoryType?,
+        search: String?
+    ): Result<List<BuildFormValue>> {
+        val repositoryConfig = RepositoryConfigUtils.buildConfig(repositoryId, repositoryType)
+        val repoScmType = scmProxyService.getRepo(
+            projectId = projectId,
+            repositoryConfig = repositoryConfig
+        ).getScmType()
+        val formValues = when (repoScmType) {
+            // Git库需要拉分支和Tag
+            in listOf(ScmType.CODE_GIT, ScmType.CODE_TGIT, ScmType.CODE_GITLAB, ScmType.GITHUB) -> {
+                getGitRefs(
+                    projectId = projectId,
+                    repositoryConfig = repositoryConfig,
+                    search = search
+                )
+            }
+
+            // Svn库仅拉分支
+            ScmType.CODE_SVN -> {
+                scmProxyService.listBranches(
+                    projectId = projectId,
+                    repositoryConfig = repositoryConfig,
+                    search = search
+                ).data ?: listOf()
+            }
+
+            else -> {
+                throw IllegalArgumentException("Unknown repo type($repoScmType)")
+            }
+        }.map { BuildFormValue(it, it) }
+        return Result(formValues)
+    }
+
+    private fun getGitRefs(
+        projectId: String,
+        repositoryConfig: RepositoryConfig,
+        search: String?
+    ): List<String> {
+        val result = mutableListOf<String>()
         val branches = scmProxyService.listBranches(
             projectId = projectId,
             repositoryConfig = repositoryConfig,
@@ -201,8 +257,25 @@ class UserBuildParametersResourceImpl @Autowired constructor(
         ).data ?: listOf()
         result.addAll(branches)
         result.addAll(tags)
-        return Result(
-            result.map { BuildFormValue(it, it) }
+        return result
+    }
+
+    override fun buildParamFormProp(
+        userId: String,
+        projectId: String,
+        pipelineId: String,
+        includeConst: Boolean?,
+        includeNotRequired: Boolean?,
+        version: Int?
+    ): Result<List<PipelineBuildParamFormProp>> {
+        val buildParamFormProp = pipelineBuildFacadeService.getBuildParamFormProp(
+            projectId = projectId,
+            pipelineId = pipelineId,
+            includeConst = includeConst,
+            includeNotRequired = includeNotRequired,
+            userId = userId,
+            version = version
         )
+        return Result(buildParamFormProp)
     }
 }

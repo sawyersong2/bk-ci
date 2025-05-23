@@ -247,7 +247,8 @@ object CommonUtils {
     private fun getProdDbClusterName(profile: Profile): String {
         // 从配置文件获取db集群名称列表
         val dbClusterNames = (SpringContextUtil.getValue("bk.db.clusterNames") ?: PROFILE_PRODUCTION).split(",")
-        val activeProfiles = profile.getActiveProfiles()
+        val activeProfiles = profile.getActiveProfiles().toMutableList()
+        activeProfiles.remove(PROFILE_PRODUCTION)
         var finalDbClusterName = PROFILE_PRODUCTION
         run breaking@{
             // 获取当前服务器集群对应的db集群名称
@@ -288,6 +289,51 @@ object CommonUtils {
             SpringContextUtil.getBean(DSLContext::class.java, archiveDslContextName)
         } else {
             SpringContextUtil.getBean(DSLContext::class.java)
+        }
+    }
+
+    /**
+     * 根据指定前后缀、长度生成数字
+     * @param prefix 前缀
+     * @param suffix 后缀
+     * @param totalLength 长度
+     * @return 数字
+     */
+    fun generateNumber(
+        prefix: Int,
+        suffix: Int,
+        totalLength: Int
+    ): Long {
+        if (prefix < 0) {
+            throw ErrorCodeException(
+                errorCode = CommonMessageCode.ERROR_INVALID_PARAM_,
+                params = arrayOf("prefix must be non-negative")
+            )
+        }
+        if (suffix < 0) {
+            throw ErrorCodeException(
+                errorCode = CommonMessageCode.ERROR_INVALID_PARAM_,
+                params = arrayOf("suffix must be non-negative")
+            )
+        }
+        val prefixStr = prefix.toString()
+        val suffixStr = suffix.toString()
+        val baseLength = prefixStr.length + suffixStr.length
+        if (totalLength < baseLength || totalLength > 19) {
+            throw ErrorCodeException(
+                errorCode = CommonMessageCode.ERROR_INVALID_PARAM_,
+                params = arrayOf("totalLength must be between $baseLength and 19")
+            )
+        }
+        val zerosCount = totalLength - baseLength
+        val numberStr = "$prefixStr${"0".repeat(zerosCount)}$suffixStr"
+        return try {
+            numberStr.toLong()
+        } catch (e: NumberFormatException) {
+            throw ErrorCodeException(
+                errorCode = CommonMessageCode.ERROR_INVALID_PARAM_,
+                params = arrayOf("the generated value exceeds the maximum value of the Long type")
+            )
         }
     }
 }

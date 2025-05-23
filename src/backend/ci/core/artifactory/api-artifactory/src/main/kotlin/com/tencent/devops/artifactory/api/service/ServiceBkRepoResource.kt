@@ -32,13 +32,14 @@ import com.tencent.devops.common.api.pojo.Result
 import io.swagger.v3.oas.annotations.tags.Tag
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
-import javax.ws.rs.Consumes
-import javax.ws.rs.HeaderParam
-import javax.ws.rs.POST
-import javax.ws.rs.Path
-import javax.ws.rs.PathParam
-import javax.ws.rs.Produces
-import javax.ws.rs.core.MediaType
+import jakarta.ws.rs.Consumes
+import jakarta.ws.rs.HeaderParam
+import jakarta.ws.rs.POST
+import jakarta.ws.rs.Path
+import jakarta.ws.rs.PathParam
+import jakarta.ws.rs.Produces
+import jakarta.ws.rs.QueryParam
+import jakarta.ws.rs.core.MediaType
 
 @Tag(name = "SERVICE_ARTIFACTORY_BKREPO", description = "仓库-BkRepo")
 @Path("/service/artifactories/bkrepo/")
@@ -56,5 +57,20 @@ interface ServiceBkRepoResource {
         @Parameter(description = "项目ID", required = true)
         @PathParam("projectId")
         projectId: String
+    ): Result<Boolean>
+
+    @Operation(summary = "同步bkrepo项目状态")
+    @Path("/{projectId}/enableProject")
+    @POST
+    fun enableProject(
+        @Parameter(description = "用户ID", required = true)
+        @HeaderParam(AUTH_HEADER_USER_ID)
+        userId: String,
+        @Parameter(description = "项目ID", required = true)
+        @PathParam("projectId")
+        projectId: String,
+        @Parameter(description = "压缩高度", required = true)
+        @QueryParam("enabled")
+        enabled: Boolean
     ): Result<Boolean>
 }

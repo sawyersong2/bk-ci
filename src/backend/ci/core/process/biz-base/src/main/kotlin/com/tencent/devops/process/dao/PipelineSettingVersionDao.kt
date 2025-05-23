@@ -29,14 +29,15 @@ package com.tencent.devops.process.dao
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.tencent.devops.common.api.pojo.PipelineAsCodeSettings
 import com.tencent.devops.common.api.util.DateTimeUtil
 import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.pipeline.pojo.setting.PipelineRunLockType
+import com.tencent.devops.common.pipeline.pojo.setting.PipelineSetting
+import com.tencent.devops.common.pipeline.pojo.setting.Subscription
 import com.tencent.devops.model.process.tables.TPipelineSettingVersion
 import com.tencent.devops.model.process.tables.records.TPipelineSettingVersionRecord
-import com.tencent.devops.common.pipeline.pojo.setting.PipelineSetting
 import com.tencent.devops.process.pojo.setting.PipelineSettingVersion
-import com.tencent.devops.common.pipeline.pojo.setting.Subscription
 import org.jooq.DSLContext
 import org.jooq.RecordMapper
 import org.slf4j.LoggerFactory
@@ -77,7 +78,8 @@ class PipelineSettingVersionDao {
                 FAILURE_SUBSCRIPTION,
                 PIPELINE_AS_CODE_SETTINGS,
                 VERSION,
-                MAX_CON_RUNNING_QUEUE_SIZE
+                MAX_CON_RUNNING_QUEUE_SIZE,
+                FAIL_IF_VARIABLE_INVALID
             ).values(
                 id,
                 setting.projectId,
@@ -100,7 +102,8 @@ class PipelineSettingVersionDao {
                     JsonUtil.toJson(self, false)
                 },
                 version,
-                setting.maxConRunningQueueSize ?: -1
+                setting.maxConRunningQueueSize ?: -1,
+                setting.failIfVariableInvalid
             ).onDuplicateKeyUpdate()
                 .set(NAME, setting.pipelineName)
                 .set(DESC, setting.desc)
@@ -114,6 +117,10 @@ class PipelineSettingVersionDao {
                 .set(SUCCESS_SUBSCRIPTION, JsonUtil.toJson(successSubscriptionList, false))
                 .set(FAILURE_SUBSCRIPTION, JsonUtil.toJson(failSubscriptionList, false))
                 .set(MAX_CON_RUNNING_QUEUE_SIZE, setting.maxConRunningQueueSize ?: -1)
+                .set(PIPELINE_AS_CODE_SETTINGS, setting.pipelineAsCodeSettings?.let { self ->
+                    JsonUtil.toJson(self, false)
+                })
+                .set(FAIL_IF_VARIABLE_INVALID, setting.failIfVariableInvalid)
                 .execute()
         }
     }
@@ -160,6 +167,25 @@ class PipelineSettingVersionDao {
 
     fun batchUpdate(dslContext: DSLContext, tPipelineSettingVersionRecords: List<TPipelineSettingVersionRecord>) {
         dslContext.batchUpdate(tPipelineSettingVersionRecords).execute()
+    }
+
+    fun updateSetting(
+        dslContext: DSLContext,
+        projectId: String,
+        pipelineId: String,
+        version: Int,
+        name: String,
+        desc: String
+    ) {
+        with(TPipelineSettingVersion.T_PIPELINE_SETTING_VERSION) {
+            dslContext.update(this)
+                .set(NAME, name)
+                .set(DESC, desc)
+                .where(PIPELINE_ID.eq(pipelineId))
+                .and(PROJECT_ID.eq(projectId))
+                .and(VERSION.eq(version))
+                .execute()
+        }
     }
 
     fun deleteAllVersion(dslContext: DSLContext, projectId: String, pipelineId: String): Int {
@@ -223,7 +249,11 @@ class PipelineSettingVersionDao {
                     buildNumRule = t.buildNumRule,
                     concurrencyCancelInProgress = t.concurrencyCancelInProgress,
                     concurrencyGroup = t.concurrencyGroup,
-                    maxConRunningQueueSize = t.maxConRunningQueueSize
+                    maxConRunningQueueSize = t.maxConRunningQueueSize,
+                    pipelineAsCodeSettings = t.pipelineAsCodeSettings?.let { self ->
+                        JsonUtil.to(self, PipelineAsCodeSettings::class.java)
+                    },
+                    failIfVariableInvalid = t.failIfVariableInvalid
                 )
             }
         }

@@ -73,7 +73,7 @@ interface IVariable
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class Variable(
-    val value: String?,
+    val value: Any?,
     var readonly: Boolean? = false,
     @JsonProperty("allow-modify-at-startup")
     val allowModifyAtStartup: Boolean? = true,
@@ -101,6 +101,7 @@ data class VariableProps(
     val type: String? = null,
     val options: List<VariablePropOption>? = null,
     var description: String? = null,
+    var group: String? = null,
     val multiple: Boolean? = null,
     var required: Boolean? = null,
     @JsonProperty("repo-id")
@@ -119,7 +120,13 @@ data class VariableProps(
     @JsonProperty("metadata")
     val properties: Map<String, String>? = null,
     val payload: Any? = null
-)
+) {
+    fun empty(): Boolean {
+        return label == null && (type == null || type == VariablePropType.VUEX_INPUT.value) && options == null &&
+            description == null && group == null && multiple == null && required == null && repoHashId == null &&
+            scmType == null && containerType == null && glob == null && properties == null && payload == null
+    }
+}
 
 /**
  * Variable 属性中的选项对象
@@ -134,6 +141,7 @@ data class VariablePropOption(
     val label: String? = null,
     val description: String? = null
 )
+
 data class BuildContainerTypeYaml(
     @JsonProperty("build-type")
     @get:Schema(title = "build-type")
@@ -178,6 +186,8 @@ enum class VariablePropType(val value: String) {
     TIME_PICKER("time-picker"),
     COMPANY_STAFF_INPUT("company-staff-input"),
     GIT_REF("git-ref"),
+    SVN_REF("svn-tag"),
+    REPO_REF("repo-ref"),
     CODE_LIB("code-lib"),
     CONTAINER_TYPE("container-type"),
     ARTIFACTORY("artifactory"),
@@ -197,6 +207,7 @@ enum class VariablePropType(val value: String) {
         ARTIFACTORY -> BuildFormPropertyType.ARTIFACTORY
         SUB_PIPELINE -> BuildFormPropertyType.SUB_PIPELINE
         CUSTOM_FILE -> BuildFormPropertyType.CUSTOM_FILE
+        REPO_REF -> BuildFormPropertyType.REPO_REF
         else -> BuildFormPropertyType.STRING
     }
 

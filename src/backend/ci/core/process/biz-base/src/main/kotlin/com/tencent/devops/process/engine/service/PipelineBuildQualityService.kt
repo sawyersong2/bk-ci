@@ -77,7 +77,7 @@ import com.tencent.devops.quality.api.v2.ServiceQualityRuleResource
 import com.tencent.devops.quality.api.v2.pojo.ControlPointPosition
 import com.tencent.devops.quality.api.v2.pojo.request.BuildCheckParams
 import java.time.LocalDateTime
-import javax.ws.rs.core.Response
+import jakarta.ws.rs.core.Response
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
@@ -289,7 +289,11 @@ class PipelineBuildQualityService(
                 taskId = taskId
             ).data ?: setOf()
 
-            auditUserSet.map { buildVariableService.replaceTemplate(projectId, buildId, it) }.toSet()
+            auditUserSet.map {
+                buildVariableService.replaceTemplate(projectId, buildId, it)
+            }.flatMap {
+                it.split(";", ",")
+            }.toSet()
         } catch (ignore: Exception) {
             logger.error("quality get audit user list fail: ${ignore.message}", ignore)
             setOf()

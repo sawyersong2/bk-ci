@@ -48,9 +48,6 @@ import com.tencent.devops.project.pojo.enums.ProjectAuthSecrecyStatus
 import com.tencent.devops.project.pojo.enums.ProjectChannelCode
 import com.tencent.devops.project.pojo.user.UserDeptDetail
 import com.tencent.devops.project.util.ProjectUtils
-import java.net.URLDecoder
-import java.time.LocalDateTime
-import java.util.Locale
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Record
@@ -61,6 +58,9 @@ import org.jooq.Result
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.lower
 import org.springframework.stereotype.Repository
+import java.net.URLDecoder
+import java.time.LocalDateTime
+import java.util.Locale
 
 @Suppress("ALL")
 @Repository
@@ -195,6 +195,9 @@ class ProjectDao {
                             ROUTER_TAG.like("%${projectConditionDTO.routerTag!!.value}%")
                         )
                     }
+                }
+                if (queryRemoteDevFlag == true) {
+                    conditions.add(JooqUtils.jsonExtractAny<Boolean>(PROPERTIES, "\$.remotedev").isTrue)
                 }
             }
         }
@@ -602,7 +605,8 @@ class ProjectDao {
         enabled: Boolean? = null,
         authSecrecyStatus: ProjectAuthSecrecyStatus? = null,
         sortType: ProjectSortType? = null,
-        collation: ProjectCollation? = ProjectCollation.DEFAULT
+        collation: ProjectCollation? = ProjectCollation.DEFAULT,
+        productIds: Set<Int> = setOf()
     ): Result<TProjectRecord> {
         with(TProject.T_PROJECT) {
             return dslContext.selectFrom(this)
@@ -612,6 +616,7 @@ class ProjectDao {
                 .let { if (null == searchName) it else it.and(PROJECT_NAME.like("%$searchName%")) }
                 .let { if (null == enabled) it else it.and(ENABLED.eq(enabled)) }
                 .let { if (null == authSecrecyStatus) it else it.and(AUTH_SECRECY.eq(authSecrecyStatus.value)) }
+                .let { if (productIds.isEmpty()) it else it.and(PRODUCT_ID.`in`(productIds)) }
                 .let {
                     if (sortType != null) {
                         when (sortType) {

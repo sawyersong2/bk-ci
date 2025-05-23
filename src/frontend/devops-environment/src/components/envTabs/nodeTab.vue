@@ -34,6 +34,14 @@
                     prop="displayName"
                     show-overflow-tooltip
                 >
+                    <template slot-scope="{ row }">
+                        <span
+                            :class="{ 'display-name': row.nodeType !== 'CMDB' }"
+                            @click="handleToNodeDetailPage(row)"
+                        >
+                            {{ row.displayName }}
+                        </span>
+                    </template>
                 </bk-table-column>
                 <bk-table-column
                     :width="150"
@@ -422,12 +430,15 @@
                 try {
                     const res = await this.$store.dispatch('environment/requestNodeList', {
                         projectId: this.projectId,
-                        envHashId: this.envHashId
+                        envHashId: this.envHashId,
+                        params: {
+                            page: -1
+                        }
                     })
 
                     this.importNodeList.splice(0, this.importNodeList.length)
 
-                    res.forEach(item => {
+                    res.records.forEach(item => {
                         item.isChecked = false
                         item.isDisplay = true
                         this.importNodeList.push(item)
@@ -705,6 +716,10 @@
                         message: e.message || e
                     })
                 }
+            },
+            handleToNodeDetailPage (row) {
+                if (row.nodeType === 'CMDB') return
+                window.open(`${location.origin}/console/environment/${this.projectId}/nodeDetail/${row.nodeHashId}`, '_blank')
             }
         }
     }
@@ -718,5 +733,10 @@
         .useless {
             color: #c3cdd7;
         }
+    }
+
+    .display-name {
+        color: #3a84ff;
+        cursor: pointer;
     }
 </style>

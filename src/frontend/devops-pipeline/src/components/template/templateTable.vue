@@ -1,10 +1,15 @@
 <template>
     <section
+        class="template-list-table-wrapper"
         v-if="listData.length"
     >
         <bk-table
             class="template-list-table"
+            height="100%"
             :data="listData"
+            :pagination="pagingConfig"
+            @page-limit-change="pageCountChange"
+            @page-change="pageChange"
             @sort-change="handleSortChange"
         >
             <bk-table-column
@@ -181,124 +186,14 @@
                         >
                             {{ $t('template.instantiate') }}
                         </span>
-                        <span
-                            @click.stop="showTools(row)"
-                            :class="[{ 'has-show': row.showMore }, 'show-more']"
-                            data-name="btns"
-                        >
-                            {{ $t('more') }}
-                            <template v-if="isEnabledPermission">
-                                <ul
-                                    v-show="row.showMore"
-                                    class="btn-more"
-                                >
-                                    <li
-                                        @click="copyTemplate(row)"
-                                        data-name="copy"
-                                        v-perm="{
-                                            hasPermission: hasCreatePermission,
-                                            disablePermissionApi: true,
-                                            permissionData: {
-                                                projectId: projectId,
-                                                resourceType: 'pipeline_template',
-                                                resourceCode: projectId,
-                                                action: TEMPLATE_RESOURCE_ACTION.CREATE
-                                            }
-                                        }"
-                                        key="cloneBtn"
-                                    >
-                                        {{ $t('clone') }}
-                                    </li>
-                                    <template v-if="!['constraint','CONSTRAINT'].includes(row.templateType)">
-                                        <li
-                                            v-if="['customize','CUSTOMIZE'].includes(row.templateType) && row.storeFlag"
-                                            data-name="stored"
-                                            class="is-disabled bk-permission-disable"
-                                            key="alreadyToStoreBtn"
-                                        >
-                                            {{ $t('template.alreadyToStore') }}
-                                        </li>
-                                        <li
-                                            v-else
-                                            @click="toRelativeStore(row)"
-                                            data-name="store"
-                                            v-perm="{
-                                                hasPermission: row.canEdit,
-                                                disablePermissionApi: true,
-                                                permissionData: {
-                                                    projectId: projectId,
-                                                    resourceType: 'pipeline_template',
-                                                    resourceCode: row.templateId,
-                                                    action: TEMPLATE_RESOURCE_ACTION.EDIT
-                                                }
-                                            }"
-                                            key="toStoreBtn"
-                                        >
-                                            {{ $t('template.toStore') }}
-                                        </li>
-                                    </template>
-                                    <li
-                                        @click="deleteTemplate(row)"
-                                        data-name="delete"
-                                        v-perm="{
-                                            hasPermission: row.canEdit,
-                                            disablePermissionApi: true,
-                                            permissionData: {
-                                                projectId: projectId,
-                                                resourceType: 'pipeline_template',
-                                                resourceCode: row.templateId,
-                                                action: TEMPLATE_RESOURCE_ACTION.EDIT
-                                            }
-                                        }"
-                                        key="deleteBtn"
-                                    >
-                                        {{ ['constraint','CONSTRAINT'].includes(row.templateType) ? $t('uninstall') : $t('delete') }}
-                                    </li>
-                                </ul>
-                            </template>
-                            <template v-else>
-                                <ul
-                                    v-show="row.showMore"
-                                    class="btn-more"
-                                >
-                                    <li
-                                        @click="copyTemplate(row)"
-                                        data-name="copy"
-                                    >{{ $t('clone') }}</li>
-                                    <template v-if="!['constraint','CONSTRAINT'].includes(row.templateType)">
-                                        <li
-                                            v-if="['customize','CUSTOMIZE'].includes(row.templateType) && row.storeFlag"
-                                            data-name="stored"
-                                            class="has-stored"
-                                        >{{ $t('template.alreadyToStore') }}</li>
-                                        <li
-                                            @click="toRelativeStore(row)"
-                                            v-else
-                                            data-name="store"
-                                        >{{ $t('template.toStore') }}</li>
-                                    </template>
-                                    <li
-                                        @click="deleteTemplate(row)"
-                                        data-name="delete"
-                                    >{{ ['constraint','CONSTRAINT'].includes(row.templateType) ? $t('uninstall') : $t('delete') }}</li>
-                                </ul>
-                            </template>
-                        </span>
+                        <ext-menu
+                            :data="row"
+                            :config="row.templateActions"
+                        />
                     </div>
                 </template>
             </bk-table-column>
         </bk-table>
-
-        <bk-pagination
-            :paging-config.sync="pagingConfig"
-            :limit="pagingConfig.limit"
-            :current="pagingConfig.current"
-            :count="pagingConfig.count"
-            @limit-change="pageCountChange"
-            @change="pageChange"
-            size="small"
-        >
-        </bk-pagination>
 
         <bk-dialog
             width="800"
@@ -323,7 +218,7 @@
                                 :class="{ 'is-danger': copyTemp.nameHasError }"
                                 @input="copyTemp.nameHasError = false"
                                 name="copyTemplateName"
-                                v-validate="&quot;required|max:30&quot;"
+                                v-validate="'required|max:30'"
                                 maxlength="30"
                             >
                         </div>
@@ -365,16 +260,18 @@
 
 <script>
     import Logo from '@/components/Logo'
-    import { navConfirm } from '@/utils/util'
     import {
         RESOURCE_ACTION,
         TEMPLATE_RESOURCE_ACTION
     } from '@/utils/permission'
-    import moment from 'moment'
+    import { navConfirm } from '@/utils/util'
+    import dayjs from 'dayjs'
+    import ExtMenu from './extMenu'
 
     export default {
         components: {
-            Logo
+            Logo,
+            ExtMenu
         },
         data () {
             return {
@@ -434,12 +331,7 @@
 
         mounted () {
             this.requestHasCreatePermission()
-            this.addClickListener()
             this.getListData()
-        },
-
-        beforeDestroy () {
-            this.removeClickListener()
         },
 
         methods: {
@@ -452,13 +344,6 @@
                 this.pagingConfig.current = current
                 this.getListData()
             },
-            showTools (row) {
-                this.listData.forEach((data) => {
-                    if (data.templateId === row.templateId) row.showMore = true
-                    else data.showMore = false
-                })
-            },
-
             async requestHasCreatePermission () {
                 try {
                     this.canCreatePP = await this.$store.dispatch('pipelines/requestHasCreatePermission', {
@@ -476,8 +361,56 @@
                         this.isEnabledPermission = res.enableTemplatePermissionManage
                         this.isManagerUser = res.hasPermission
                         this.listData = (res.models || []).map(x => {
-                            x.showMore = false
-                            x.updateTime = moment(x.updateTime).format('YYYY-MM-DD HH:mm:ss')
+                            x.updateTime = dayjs(x.updateTime).format('YYYY-MM-DD HH:mm:ss')
+                            x.templateActions = [
+                                {
+                                    text: this.$t('clone'),
+                                    handler: this.copyTemplate,
+                                    hasPermission: this.hasCreatePermission,
+                                    disablePermissionApi: true,
+                                    permissionData: {
+                                        projectId: this.projectId,
+                                        resourceType: 'pipeline_template',
+                                        resourceCode: this.projectId,
+                                        action: this.RESOURCE_ACTION.CREATE
+                                    }
+                                },
+                                ...(
+                                    !['constraint', 'CONSTRAINT'].includes(x.templateType)
+                                        ? [
+                                            ['customize', 'CUSTOMIZE'].includes(x.templateType) && x.storeFlag
+                                                ? {
+                                                    text: this.$t('template.alreadyToStore'),
+                                                    disable: true
+                                                }
+                                                : {
+                                                    text: this.$t('template.toStore'),
+                                                    handler: this.toRelativeStore,
+                                                    hasPermission: x.canEdit,
+                                                    disablePermissionApi: true,
+                                                    permissionData: {
+                                                        projectId: this.projectId,
+                                                        resourceType: 'pipeline_template',
+                                                        resourceCode: x.templateId,
+                                                        action: this.TEMPLATE_RESOURCE_ACTION.EDIT
+                                                    }
+                                                }
+                                        ]
+                                        : []
+                                ),
+                                {
+                                    text: ['constraint', 'CONSTRAINT'].includes(x.templateType) ? this.$t('uninstall') : this.$t('delete'),
+                                    handler: this.deleteTemplate,
+                                    hasPermission: x.canEdit,
+                                    disablePermissionApi: true,
+                                    permissionData: {
+                                        projectId: this.projectId,
+                                        resourceType: 'pipeline_template',
+                                        resourceCode: x.templateId,
+                                        action: this.TEMPLATE_RESOURCE_ACTION.EDIT
+                                    }
+                                }
+                            ]
                             return x
                         })
                         this.pagingConfig.count = res.count
@@ -618,14 +551,6 @@
                 }
             },
 
-            addClickListener () {
-                document.addEventListener('mouseup', this.closeShowMore)
-            },
-
-            removeClickListener () {
-                document.removeEventListener('mouseup', this.closeShowMore)
-            },
-
             handleSortChange ({ prop, order }) {
                 this.getListData({
                     orderBy: this.sortByMap[prop],
@@ -638,143 +563,130 @@
 
 <style lang="scss" scoped>
     @import '@/scss/conf';
-    .template-list-table {
-        margin: 20px 0;
-        &:after {
-            content: '';
-            clear: both;
-            display: table;
-        }
-        .bk-label.tip-bottom {
-            border-bottom: 1px dotted #63656E;
-            padding: 0;
-            margin: 10px 20px 10px 60px;
-            width: 60px;
-        }
-        .form-tips {
-            position: absolute;
-            width: 40px;
-            left: 50px;
-            bottom: 5px;
-            box-sizing: content-box;
-            padding-left: 40px;
-        }
-        .create-permission {
-            cursor: pointer;
-        }
-        .not-create-permission {
-            cursor: not-allowed;
-        }
-        .template-name {
-            max-width: 192px;
-            padding: 0;
-            span {
-                cursor: pointer;
-                margin: 8px 13px;
+    .template-list-table-wrapper {
+        height: 100%;
+        overflow: hidden;
+
+        .template-list-table {
+            &:after {
+                content: '';
+                clear: both;
+                display: table;
             }
-        }
-        .manager-user {
-            color: $primaryColor;
-            cursor: pointer;
-        }
-        .is-disabled {
-            cursor: not-allowed !important;
-        }
-        .icon-item {
-            margin-top: 10px;
-        }
-        .pipeline-icon {
-            width: 40px;
-            height: 40px;
-        }
-        .template-name p {
-            margin-top: 10px;
-            font-size: 12px;
-            color: #C3CDD7;
-            span {
-                color: #63656E;
-            }
-        }
-        .codelib-item {
-            white-space: nowrap;
-            overflow: hidden;
-            max-width: 406px;
-            text-overflow: ellipsis;
-            font-size: 12px;
-            color: #C3CDD7;
-        }
-        .pipeline-instance {
-            color: $primaryColor;
-            cursor: pointer;
-        }
-        .handler-btn {
-            overflow: visible;
-            position: relative;
-            .btn-more {
-                position: absolute;
-                top: 50px;
-                right: -33px;
-                width: 91px;
-                max-height: 250px;
-                background: #fff;
+            .bk-label.tip-bottom {
+                border-bottom: 1px dotted #63656E;
                 padding: 0;
-                margin: 0;
-                z-index: 99;
-                overflow: auto;
-                border-radius: 2px;
-                border: 1px solid #c3cdd7;
-                transition: all 200ms;
-                box-shadow: 0 2px 6px rgba(51, 60, 72, 0.1);
-                li {
+                margin: 10px 20px 10px 60px;
+                width: 60px;
+            }
+            .form-tips {
+                position: absolute;
+                width: 40px;
+                left: 50px;
+                bottom: 5px;
+                box-sizing: content-box;
+                padding-left: 40px;
+            }
+            .create-permission {
+                cursor: pointer;
+            }
+            .not-create-permission {
+                cursor: not-allowed;
+            }
+            .template-name {
+                max-width: 192px;
+                padding: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                span {
                     cursor: pointer;
-                    line-height: 40px;
-                    text-align: center;
+                    margin: 8px 13px;
+                }
+            }
+            .manager-user {
+                color: $primaryColor;
+                cursor: pointer;
+            }
+            .is-disabled {
+                cursor: not-allowed !important;
+            }
+            .icon-item {
+                margin-top: 10px;
+            }
+            .pipeline-icon {
+                width: 40px;
+                height: 40px;
+            }
+            .template-name p {
+                margin-top: 10px;
+                font-size: 12px;
+                color: #C3CDD7;
+                span {
+                    color: #63656E;
+                }
+            }
+            .codelib-item {
+                white-space: nowrap;
+                overflow: hidden;
+                max-width: 406px;
+                text-overflow: ellipsis;
+                font-size: 12px;
+                color: #C3CDD7;
+            }
+            .pipeline-instance {
+                color: $primaryColor;
+                cursor: pointer;
+            }
+            .handler-btn {
+                overflow: visible;
+                position: relative;
+                display: flex;
+                .btn-more {
+                    position: absolute;
+                    top: 50px;
+                    right: -33px;
+                    width: 91px;
+                    max-height: 250px;
+                    background: #fff;
+                    padding: 0;
+                    margin: 0;
+                    z-index: 99;
+                    overflow: auto;
+                    border-radius: 2px;
+                    border: 1px solid #c3cdd7;
+                    transition: all 200ms;
+                    box-shadow: 0 2px 6px rgba(51, 60, 72, 0.1);
+                    li {
+                        cursor: pointer;
+                        line-height: 40px;
+                        text-align: center;
+                        color: $fontColor;
+                        &:hover {
+                            color: $primaryColor;
+                            background: $primaryLightColor;
+                        }
+                    }
+                }
+                span {
+                    display: inline-block;
+                    margin-left: 5px;
                     color: $fontColor;
+                    cursor: pointer;
                     &:hover {
                         color: $primaryColor;
-                        background: $primaryLightColor;
                     }
                 }
             }
-            .show-more {
-                position: relative;
-                padding-right: 20px;
-                &:after {
-                    content: '';
-                    position: absolute;
-                    top: 23px;
-                    right: 8px;
-                    height: 8px;
-                    width: 8px;
-                    border-right: 1px solid $fontColor;
-                    border-bottom: 1px solid $fontColor;
-                    transition: transform 200ms;
-                    transform: rotate(45deg);
-                    transform-origin: 6px 6px;
+            .not-permission {
+                span, .btn-more li {
+                    cursor: not-allowed;
                 }
             }
-            .has-show:after {
-                transform: rotate(225deg);
+            ::v-deep .cell {
+                height: 60px;
+                line-height: 60px;
             }
-            span {
-                display: inline-block;
-                margin-left: 5px;
-                color: $fontColor;
-                cursor: pointer;
-                &:hover {
-                    color: $primaryColor;
-                }
-            }
-        }
-        .not-permission {
-            span, .btn-more li {
-                cursor: not-allowed;
-            }
-        }
-        ::v-deep .cell {
-            height: 60px;
-            line-height: 60px;
-            overflow: visible !important;
         }
     }
 

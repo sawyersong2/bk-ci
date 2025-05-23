@@ -111,6 +111,9 @@ object StreamBinding {
     // AGENT 构建排队消息队列 ====================================
     const val DISPATCH_AGENT_QUEUE = "dispatch.tp.agent.queue"
 
+    // AGENT 构建监控消息队列
+    const val DISPATCH_AGENT_MONITOR = "dispatch.tp.agent.monitor"
+
     // 无构建环境的Docker构建机启停消息队列 ====================================
     const val BUILD_LESS_AGENT_STARTUP_DISPATCH = "engine.pipeline.bl.agent.dispatch.startup"
     const val BUILD_LESS_AGENT_SHUTDOWN_DISPATCH = "engine.pipeline.bl.agent.dispatch.shutdown"
@@ -142,6 +145,9 @@ object StreamBinding {
     // P4代码仓库webhook请求回调
     const val REPLAY_BUILD_REQUEST_EVENT = "engine.pipeline.hook.replay.event"
 
+    // scm webhook请求回调
+    const val SCM_HOOK_BUILD_REQUEST_EVENT = "engine.pipeline.hook.scm.event"
+
     // webSocket消息
     const val WEBSOCKET_TMP_FANOUT = "websocket.fanout"
     const val WEBSOCKET_SESSION_CLEAR = "websocket.session.clear.fanout"
@@ -168,7 +174,9 @@ object StreamBinding {
     const val GIT_WEBHOOK_UNLOCK_EVENT = "webhook.unlock.event"
 
     // 蓝盾管理员
-    const val AUTH_REFRESH_FANOUT = "auth.refresh.exchange.fanout"
+    const val AUTH_MANGER_CHANGE_FANOUT = "auth.manager.change.fanout"
+    const val AUTH_MANGER_USER_CHANGE_FANOUT = "auth.manager.user.change.fanout"
+    const val AUTH_STRATEGY_UPDATE_FANOUT = "auth.strategy.update.fanout"
 
     // 流水线webhook commit记录
     const val PIPELINE_BUILD_COMMIT_FINISH_FANOUT = "engine.pipeline.build.commits.finish.fanout"
@@ -204,4 +212,5 @@ object StreamBinding {
     const val PIPELINE_YAML_LISTENER_ENABLE = "pipeline.yaml.listener.enable"
     const val PIPELINE_YAML_LISTENER_DISABLE = "pipeline.yaml.listener.disable"
     const val PIPELINE_YAML_LISTENER_TRIGGER = "pipeline.yaml.listener.trigger"
+    const val PIPELINE_YAML_LISTENER_FILE = "pipeline.yaml.listener.file"
 }

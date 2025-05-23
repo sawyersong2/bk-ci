@@ -27,8 +27,8 @@
 
 package com.tencent.devops.environment.resources
 
-import com.tencent.devops.common.api.pojo.Page
 import com.tencent.bk.audit.annotations.AuditEntry
+import com.tencent.devops.common.api.pojo.Page
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.api.util.HashUtil
 import com.tencent.devops.common.auth.api.ActionId
@@ -40,8 +40,11 @@ import com.tencent.devops.environment.api.UserNodeResource
 import com.tencent.devops.environment.permission.EnvNodeAuthorizationService
 import com.tencent.devops.environment.pojo.DisplayName
 import com.tencent.devops.environment.pojo.NodeWithPermission
+import com.tencent.devops.environment.pojo.enums.NodeStatus
+import com.tencent.devops.environment.pojo.enums.NodeType
 import com.tencent.devops.environment.service.NodeService
 import com.tencent.devops.environment.utils.NodeUtils
+import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Autowired
 
 @RestResource
@@ -80,12 +83,78 @@ class UserNodeResourceImpl @Autowired constructor(
         displayName: String?,
         createdUser: String?,
         lastModifiedUser: String?,
-        keywords: String?
+        keywords: String?,
+        nodeType: NodeType?,
+        nodeStatus: NodeStatus?,
+        agentVersion: String?,
+        osName: String?,
+        latestBuildPipelineId: String?,
+        latestBuildTimeStart: Long?,
+        latestBuildTimeEnd: Long?,
+        sortType: String?,
+        collation: String?
     ): Result<Page<NodeWithPermission>> {
         return Result(
             nodeService.listNew(
-                userId, projectId, page, pageSize, nodeIp, displayName, createdUser, lastModifiedUser, keywords
+                userId = userId,
+                projectId = projectId,
+                page = page,
+                pageSize = pageSize,
+                nodeIp = nodeIp,
+                displayName = displayName,
+                createdUser = createdUser,
+                lastModifiedUser = lastModifiedUser,
+                keywords = keywords,
+                nodeType = nodeType,
+                nodeStatus = nodeStatus,
+                agentVersion = agentVersion,
+                osName = osName,
+                latestBuildPipelineId = latestBuildPipelineId,
+                latestBuildTimeStart = latestBuildTimeStart,
+                latestBuildTimeEnd = latestBuildTimeEnd,
+                sortType = sortType,
+                collation = collation
             )
+        )
+    }
+
+    override fun listNewExport(
+        userId: String,
+        projectId: String,
+        nodeIp: String?,
+        displayName: String?,
+        createdUser: String?,
+        lastModifiedUser: String?,
+        keywords: String?,
+        nodeType: NodeType?,
+        nodeStatus: NodeStatus?,
+        agentVersion: String?,
+        osName: String?,
+        latestBuildPipelineId: String?,
+        latestBuildTimeStart: Long?,
+        latestBuildTimeEnd: Long?,
+        sortType: String?,
+        collation: String?,
+        response: HttpServletResponse
+    ) {
+        nodeService.listNewExport(
+            userId = userId,
+            projectId = projectId,
+            nodeIp = nodeIp,
+            displayName = displayName,
+            createdUser = createdUser,
+            lastModifiedUser = lastModifiedUser,
+            keywords = keywords,
+            nodeType = nodeType,
+            nodeStatus = nodeStatus,
+            agentVersion = agentVersion,
+            osName = osName,
+            latestBuildPipelineId = latestBuildPipelineId,
+            latestBuildTimeStart = latestBuildTimeStart,
+            latestBuildTimeEnd = latestBuildTimeEnd,
+            sortType = sortType,
+            collation = collation,
+            response = response
         )
     }
 

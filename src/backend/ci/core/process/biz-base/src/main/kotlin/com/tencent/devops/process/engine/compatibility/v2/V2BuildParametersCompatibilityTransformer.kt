@@ -28,8 +28,11 @@
 package com.tencent.devops.process.engine.compatibility.v2
 
 import com.tencent.devops.common.api.exception.ErrorCodeException
+import com.tencent.devops.common.api.util.JsonUtil
+import com.tencent.devops.common.pipeline.enums.BuildFormPropertyType
 import com.tencent.devops.common.pipeline.pojo.BuildFormProperty
 import com.tencent.devops.common.pipeline.pojo.BuildParameters
+import com.tencent.devops.common.pipeline.pojo.CustomFileVersionControlInfo
 import com.tencent.devops.process.constant.ProcessMessageCode
 import com.tencent.devops.process.engine.compatibility.BuildParametersCompatibilityTransformer
 import com.tencent.devops.process.utils.PipelineVarUtil
@@ -37,6 +40,7 @@ import org.slf4j.LoggerFactory
 
 open class V2BuildParametersCompatibilityTransformer : BuildParametersCompatibilityTransformer {
 
+    @SuppressWarnings("ComplexMethod", "NestedBlockDepth")
     override fun parseTriggerParam(
         userId: String,
         projectId: String,
@@ -48,27 +52,50 @@ open class V2BuildParametersCompatibilityTransformer : BuildParametersCompatibil
         val paramsMap = HashMap<String, BuildParameters>(paramProperties.size, 1F)
 
         paramProperties.forEach { param ->
+            // 对于CUSTOM_FILE类型的变量，需要特殊处理和保存
+            var randomStringInPath: String? = null
+
             // 通过对现有Model存在的旧变量替换成新变量， 如果已经是新的会为空，直接为it.id
             val key = PipelineVarUtil.oldVarToNewVar(param.id) ?: param.id
 
             // 现有用户覆盖定义旧系统变量的，前端无法帮助转换，用户传的仍然是旧变量为key，则用新的Key无法找到，要用旧的id兜底
             // 如果编排中指定为常量，则必须以编排的默认值为准，不支持触发时传参覆盖
-            val value = if (param.constant == true) {
-                // 常量需要在启动是强制设为只读
-                param.readOnly = true
-                param.defaultValue
-//            } else if (!param.required) {
-//                // TODO #8161 没有作为前端可填入参的变量，直接取默认值，不可被覆盖（实施前仅打印日志）
-//                param.defaultValue
-            } else {
-                val overrideValue = paramValues[key] ?: paramValues[param.id]
-                if (!param.required && overrideValue != null) {
-                    logger.warn(
-                        "BKSystemErrorMonitor|parseTriggerParam|$userId|$projectId|$pipelineId|[$key] " +
-                            "not required, overrideValue=$overrideValue, defaultValue=${param.defaultValue}"
-                    )
+            val value = when {
+                param.constant == true -> {
+                    // 常量需要在启动是强制设为只读
+                    param.readOnly = true
+                    param.defaultValue
                 }
-                overrideValue ?: param.defaultValue
+//                !param.required ->{
+//                TODO #8161 没有作为前端可填入参的变量，直接取默认值，不可被覆盖（实施前仅打印日志）
+//                param.defaultValue
+//            }
+                param.type == BuildFormPropertyType.CUSTOM_FILE && param.enableVersionControl == true -> {
+                    // 与前端约定，对于自定义文件路径需要，解析出版本控制信息
+                    val versionControlInfo = paramValues[key]?.let { str ->
+                        try {
+                            JsonUtil.to(str, CustomFileVersionControlInfo::class.java)
+                        } catch (ignore: Throwable) {
+                            null
+                        }
+                    }
+                    if (versionControlInfo != null) {
+                        randomStringInPath = versionControlInfo.latestRandomStringInPath
+                        versionControlInfo.directory
+                    } else {
+                        param.value ?: param.defaultValue
+                    }
+                }
+                else -> {
+                    val overrideValue = paramValues[key] ?: paramValues[param.id]
+                    if (!param.required && overrideValue != null) {
+                        logger.warn(
+                            "BKSystemErrorMonitor|parseTriggerParam|$userId|$projectId|$pipelineId|[$key] " +
+                                    "not required, overrideValue=$overrideValue, defaultValue=${param.defaultValue}"
+                        )
+                    }
+                    overrideValue ?: param.defaultValue
+                }
             }
             if (param.valueNotEmpty == true && value.toString().isEmpty()) {
                 throw ErrorCodeException(
@@ -83,7 +110,8 @@ open class V2BuildParametersCompatibilityTransformer : BuildParametersCompatibil
                 valueType = param.type,
                 readOnly = param.readOnly,
                 desc = param.desc,
-                defaultValue = param.defaultValue
+                defaultValue = param.defaultValue,
+                latestRandomStringInPath = randomStringInPath
             )
         }
 

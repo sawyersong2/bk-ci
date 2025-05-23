@@ -19,7 +19,7 @@
                 'devops-codelib-table': true,
                 'flod-table': isListFlod
             }"
-            :data="records"
+            :data="tableData"
             :size="tableSize"
             :height="tableHeight"
             :outer-border="false"
@@ -59,10 +59,15 @@
                             v-if="isListFlod"
                             class="mask"
                         ></div>
-                        <Icon
+                        <!-- <Icon
+                            v-if="codelibIconMap[props.row.type]"
                             class="codelib-logo"
                             :name="codelibIconMap[props.row.type]"
                             size="16"
+                        /> -->
+                        <img
+                            class="codelib-logo"
+                            :src="props.row.logoUrl"
                         />
                         <div
                             :class="{
@@ -157,7 +162,7 @@
             >
                 <template slot-scope="props">
                     <bk-button
-                        v-if="props.row.type === 'CODE_GIT' && !props.row.enablePac"
+                        v-if="props.row.showEnablePac && !props.row.enablePac"
                         theme="primary"
                         text
                         class="mr10"
@@ -343,10 +348,19 @@
         },
 
         computed: {
-            ...mapState('codelib', ['gitOAuth']),
+            ...mapState('codelib', ['gitOAuth', 'codelibTypes']),
 
             projectId () {
                 return this.$route.params.projectId
+            },
+            
+            tableData () {
+                return this.records.map(codelib => {
+                    return {
+                        ...codelib,
+                        showEnablePac: this.codelibTypes.find(i => i.scmCode === codelib.scmCode)?.pacEnabled || false
+                    }
+                })
             },
 
             /**
@@ -423,7 +437,7 @@
                 authType: 200,
                 updatedUser: 200,
                 updatedTime: 200,
-                operation: 80
+                operation: 150
             }
         },
 
@@ -741,6 +755,8 @@
             right: 0;
         }
         .codelib-logo {
+            width: 16px;
+            height: 16px;
             flex-shrink: 0;
         }
         .codelib-name {

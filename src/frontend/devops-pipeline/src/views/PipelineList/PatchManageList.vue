@@ -65,8 +65,7 @@
     import PipelineTableView from '@/components/pipelineList/PipelineTableView'
     import AddToGroupDialog from '@/views/PipelineList/AddToGroupDialog'
     import RemoveConfirmDialog from '@/views/PipelineList/RemoveConfirmDialog'
-    import moment from 'moment'
-    import { mapActions, mapGetters } from 'vuex'
+    import { mapGetters } from 'vuex'
     import PipelineSearcher from './PipelineSearcher'
     export default {
         name: 'patch-manage-list',
@@ -108,9 +107,6 @@
                 }
             }
         },
-        created () {
-            moment.locale(this.$i18n.locale)
-        },
         mounted () {
             this.updateTableHeight()
             window.addEventListener('resize', this.updateTableHeight)
@@ -119,9 +115,6 @@
             window.removeEventListener('resize', this.updateTableHeight)
         },
         methods: {
-            ...mapActions('pipelines', [
-                'requestAllPipelinesListByFilter'
-            ]),
             updateTableHeight () {
                 this.tableHeight = this.$refs.tableBox.offsetHeight
             },

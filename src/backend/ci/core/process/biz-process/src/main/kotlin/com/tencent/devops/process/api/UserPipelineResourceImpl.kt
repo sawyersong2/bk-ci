@@ -33,13 +33,13 @@ import com.tencent.devops.common.api.constant.CommonMessageCode.USER_NOT_PERMISS
 import com.tencent.devops.common.api.exception.ErrorCodeException
 import com.tencent.devops.common.api.exception.InvalidParamException
 import com.tencent.devops.common.api.exception.ParamBlankException
+import com.tencent.devops.common.api.model.SQLPage
 import com.tencent.devops.common.api.pojo.Page
 import com.tencent.devops.common.api.pojo.Result
 import com.tencent.devops.common.api.util.MessageUtil
 import com.tencent.devops.common.auth.api.ActionId
 import com.tencent.devops.common.auth.api.AuthPermission
 import com.tencent.devops.common.auth.api.AuthResourceType
-import com.tencent.devops.common.client.Client
 import com.tencent.devops.common.pipeline.Model
 import com.tencent.devops.common.pipeline.enums.ChannelCode
 import com.tencent.devops.common.pipeline.enums.VersionStatus
@@ -64,6 +64,7 @@ import com.tencent.devops.process.pojo.Pipeline
 import com.tencent.devops.process.pojo.PipelineCollation
 import com.tencent.devops.process.pojo.PipelineCopy
 import com.tencent.devops.process.pojo.PipelineId
+import com.tencent.devops.process.pojo.PipelineIdAndName
 import com.tencent.devops.process.pojo.PipelineName
 import com.tencent.devops.process.pojo.PipelineRemoteToken
 import com.tencent.devops.process.pojo.PipelineSortType
@@ -86,7 +87,7 @@ import com.tencent.devops.process.service.label.PipelineGroupService
 import com.tencent.devops.process.service.pipeline.PipelineSettingFacadeService
 import io.micrometer.core.annotation.Timed
 import org.springframework.beans.factory.annotation.Autowired
-import javax.ws.rs.core.Response
+import jakarta.ws.rs.core.Response
 
 @RestResource
 @Suppress("LongParameterList")
@@ -101,8 +102,7 @@ class UserPipelineResourceImpl @Autowired constructor(
     private val auditService: AuditService,
     private val pipelineVersionFacadeService: PipelineVersionFacadeService,
     private val pipelineRuleService: PipelineRuleService,
-    private val pipelineRecentUseService: PipelineRecentUseService,
-    private val client: Client
+    private val pipelineRecentUseService: PipelineRecentUseService
 ) : UserPipelineResource {
 
     override fun hasCreatePermission(userId: String, projectId: String): Result<Boolean> {
@@ -773,5 +773,29 @@ class UserPipelineResourceImpl @Autowired constructor(
             )
         }
         return Result(MatrixYamlCheckUtils.checkYaml(yaml))
+    }
+
+    override fun countInheritedDialectPipeline(
+        userId: String,
+        projectId: String
+    ): Result<Long> {
+        return Result(
+            pipelineListFacadeService.countInheritedDialectPipeline(projectId = projectId)
+        )
+    }
+
+    override fun listInheritedDialectPipelines(
+        userId: String,
+        projectId: String,
+        page: Int?,
+        pageSize: Int?
+    ): Result<SQLPage<PipelineIdAndName>> {
+        return Result(
+            pipelineListFacadeService.listInheritedDialectPipelines(
+                projectId = projectId,
+                page = page,
+                pageSize = pageSize
+            )
+        )
     }
 }

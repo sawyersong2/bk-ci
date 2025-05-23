@@ -61,7 +61,9 @@ data class PreScriptBuildYamlV3Parser(
     override val concurrency: Concurrency? = null,
     override val disablePipeline: Boolean? = null,
     override val recommendedVersion: RecommendedVersion? = null,
-    override val customBuildNum: String? = null
+    override val customBuildNum: String? = null,
+    override val syntaxDialect: String?,
+    override val failIfVariableInvalid: Boolean? = null
 ) : PreScriptBuildYamlIParser {
     override fun yamlVersion() = YamlVersion.V3_0
 }

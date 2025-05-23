@@ -35,7 +35,7 @@ import com.tencent.devops.common.api.util.JsonUtil
 import com.tencent.devops.common.audit.ActionAuditContent
 import com.tencent.devops.common.auth.api.ActionId
 import com.tencent.devops.common.auth.api.ResourceTypeId
-import com.tencent.devops.common.pipeline.Model
+import com.tencent.devops.common.pipeline.dialect.PipelineDialectUtil
 import com.tencent.devops.common.pipeline.enums.BuildFormPropertyType
 import com.tencent.devops.common.pipeline.enums.ChannelCode
 import com.tencent.devops.common.pipeline.enums.StartType
@@ -54,6 +54,8 @@ import com.tencent.devops.process.engine.service.PipelineRepositoryService
 import com.tencent.devops.process.engine.service.PipelineRuntimeService
 import com.tencent.devops.process.pojo.BuildId
 import com.tencent.devops.process.pojo.app.StartBuildContext
+import com.tencent.devops.process.pojo.pipeline.PipelineResourceVersion
+import com.tencent.devops.process.service.PipelineAsCodeService
 import com.tencent.devops.process.service.ProjectCacheService
 import com.tencent.devops.process.util.BuildMsgUtils
 import com.tencent.devops.process.utils.BK_CI_AUTHORIZER
@@ -64,6 +66,8 @@ import com.tencent.devops.process.utils.PIPELINE_BUILD_ID
 import com.tencent.devops.process.utils.PIPELINE_BUILD_MSG
 import com.tencent.devops.process.utils.PIPELINE_BUILD_URL
 import com.tencent.devops.process.utils.PIPELINE_CREATE_USER
+import com.tencent.devops.process.utils.PIPELINE_DIALECT
+import com.tencent.devops.process.utils.PIPELINE_FAIL_IF_VARIABLE_INVALID_FLAG
 import com.tencent.devops.process.utils.PIPELINE_ID
 import com.tencent.devops.process.utils.PIPELINE_NAME
 import com.tencent.devops.process.utils.PIPELINE_RETRY_BUILD_ID
@@ -81,6 +85,7 @@ import com.tencent.devops.process.utils.PIPELINE_START_USER_ID
 import com.tencent.devops.process.utils.PIPELINE_START_USER_NAME
 import com.tencent.devops.process.utils.PIPELINE_START_WEBHOOK_USER_ID
 import com.tencent.devops.process.utils.PIPELINE_UPDATE_USER
+import com.tencent.devops.process.utils.PIPELINE_VARIABLES_STRING_LENGTH_MAX
 import com.tencent.devops.process.utils.PIPELINE_VERSION
 import com.tencent.devops.process.utils.PROJECT_NAME
 import com.tencent.devops.process.utils.PROJECT_NAME_CHINESE
@@ -99,7 +104,8 @@ class PipelineBuildService(
     private val projectCacheService: ProjectCacheService,
     private val pipelineUrlBean: PipelineUrlBean,
     private val simpleRateLimiter: SimpleRateLimiter,
-    private val buildIdGenerator: BuildIdGenerator
+    private val buildIdGenerator: BuildIdGenerator,
+    private val pipelineAsCodeService: PipelineAsCodeService
 ) {
     companion object {
         private val NO_LIMIT_CHANNEL = listOf(ChannelCode.CODECC)
@@ -124,8 +130,7 @@ class PipelineBuildService(
         pipelineParamMap: MutableMap<String, BuildParameters>,
         channelCode: ChannelCode,
         isMobile: Boolean,
-        model: Model,
-        yamlVersion: String?,
+        resource: PipelineResourceVersion,
         signPipelineVersion: Int? = null, // 指定的版本
         frequencyLimit: Boolean = true,
         buildNo: Int? = null,
@@ -133,8 +138,7 @@ class PipelineBuildService(
         handlePostFlag: Boolean = true,
         webHookStartParam: MutableMap<String, BuildParameters> = mutableMapOf(),
         triggerReviewers: List<String>? = null,
-        debug: Boolean? = false,
-        versionName: String? = null
+        debug: Boolean? = false
     ): BuildId {
 
         var acquire = false
@@ -160,7 +164,15 @@ class PipelineBuildService(
                 )
             } ?: pipelineRepositoryService.getSetting(pipeline.projectId, pipeline.pipelineId)
         } else {
-            pipelineRepositoryService.getSetting(pipeline.projectId, pipeline.pipelineId)
+            // webhook、重试可以指定流水线版本
+            pipelineRepositoryService.getSettingByPipelineVersion(
+                projectId = pipeline.projectId,
+                pipelineId = pipeline.pipelineId,
+                pipelineVersion = signPipelineVersion
+            )
+        }
+        if (setting?.failIfVariableInvalid == true) {
+            failIfVariableInvalid(pipelineParamMap)
         }
         val bucketSize = setting!!.maxConRunningQueueSize
         val lockKey = "PipelineRateLimit:${pipeline.pipelineId}"
@@ -177,14 +189,20 @@ class PipelineBuildService(
                     )
                 }
             }
+            val asCodeSettings = pipelineAsCodeService.getPipelineAsCodeSettings(
+                projectId = pipeline.projectId,
+                asCodeSettings = setting.pipelineAsCodeSettings
+            )
+            val pipelineDialectType =
+                PipelineDialectUtil.getPipelineDialectType(channelCode = channelCode, asCodeSettings = asCodeSettings)
 
             // 如果指定了版本号，则设置指定的版本号
             pipeline.version = signPipelineVersion ?: pipeline.version
-            val originModelStr = JsonUtil.toJson(model, formatted = false)
+            val originModelStr = JsonUtil.toJson(resource.model, formatted = false)
             // 只有新构建才需要填充Post插件与质量红线插件
             if (!pipelineParamMap.containsKey(PIPELINE_RETRY_BUILD_ID)) {
                 pipelineElementService.fillElementWhenNewBuild(
-                    model = model,
+                    model = resource.model,
                     projectId = pipeline.projectId,
                     pipelineId = pipeline.pipelineId,
                     startValues = startValues,
@@ -212,7 +230,9 @@ class PipelineBuildService(
                     )
                 } else {
                     null
-                }
+                },
+                pipelineDialectType = pipelineDialectType.name,
+                failIfVariableInvalid = setting.failIfVariableInvalid
             )
 
             val context = StartBuildContext.init(
@@ -227,16 +247,17 @@ class PipelineBuildService(
                 pipelineParamMap = pipelineParamMap,
                 webHookStartParam = webHookStartParam,
                 // 解析出定义的流水线变量
-                realStartParamKeys = model.getTriggerContainer().params.map { it.id },
+                realStartParamKeys = resource.model.getTriggerContainer()
+                    .params.map { it.id },
                 debug = debug ?: false,
-                versionName = versionName,
-                yamlVersion = yamlVersion
+                versionName = resource.versionName,
+                yamlVersion = resource.yamlVersion
             )
 
             val interceptResult = pipelineInterceptorChain.filter(
                 InterceptData(
                     pipelineInfo = pipeline,
-                    model = model,
+                    model = resource.model,
                     startType = startType,
                     buildId = buildId,
                     runLockType = setting.runLockType,
@@ -256,7 +277,7 @@ class PipelineBuildService(
                 )
             }
 
-            return pipelineRuntimeService.startBuild(fullModel = model, context = context)
+            return pipelineRuntimeService.startBuild(fullModel = resource.model, context = context)
         } finally {
             if (acquire) {
                 simpleRateLimiter.release(lockKey = lockKey)
@@ -275,7 +296,9 @@ class PipelineBuildService(
         channelCode: ChannelCode,
         isMobile: Boolean,
         debug: Boolean? = false,
-        pipelineAuthorizer: String? = null
+        pipelineAuthorizer: String? = null,
+        pipelineDialectType: String,
+        failIfVariableInvalid: Boolean? = false
     ) {
         val userName = when (startType) {
             StartType.PIPELINE -> pipelineParamMap[PIPELINE_START_PIPELINE_USER_ID]?.value
@@ -366,6 +389,12 @@ class PipelineBuildService(
             ),
             readOnly = true
         )
+        pipelineParamMap[PIPELINE_DIALECT] = BuildParameters(PIPELINE_DIALECT, pipelineDialectType, readOnly = true)
+        if (failIfVariableInvalid == true) {
+            pipelineParamMap[PIPELINE_FAIL_IF_VARIABLE_INVALID_FLAG] = BuildParameters(
+                PIPELINE_FAIL_IF_VARIABLE_INVALID_FLAG, true, readOnly = true
+            )
+        }
         // 自定义触发源材料信息
         startValues?.get(BK_CI_MATERIAL_ID)?.let {
             pipelineParamMap[BK_CI_MATERIAL_ID] = BuildParameters(
@@ -404,5 +433,16 @@ class PipelineBuildService(
                 BuildParameters(key = TraceTag.TRACE_HEADER_DEVOPS_BIZID, value = bizId)
         }
 //        return originStartParams
+    }
+
+    fun failIfVariableInvalid(pipelineParamMap: MutableMap<String, BuildParameters>) {
+        pipelineParamMap.forEach { (key, value) ->
+            if (value.value.toString().length > PIPELINE_VARIABLES_STRING_LENGTH_MAX) {
+                throw ErrorCodeException(
+                    errorCode = ProcessMessageCode.ERROR_FAIL_IF_VARIABLE_INVALID,
+                    params = arrayOf(key)
+                )
+            }
+        }
     }
 }

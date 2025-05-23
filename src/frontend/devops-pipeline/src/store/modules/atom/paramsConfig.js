@@ -30,6 +30,7 @@ export const CONTAINER_TYPE = 'CONTAINER_TYPE'
 export const ARTIFACTORY = 'ARTIFACTORY'
 export const SUB_PIPELINE = 'SUB_PIPELINE'
 export const CUSTOM_FILE = 'CUSTOM_FILE'
+export const REPO_REF = 'REPO_REF'
 
 function paramType (typeConst) {
     return type => type === typeConst
@@ -46,7 +47,8 @@ export const DEFAULT_PARAM = {
         type: STRING,
         typeDesc: 'string',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [TEXTAREA]: {
         id: 'textarea',
@@ -56,7 +58,8 @@ export const DEFAULT_PARAM = {
         type: TEXTAREA,
         typeDesc: 'textarea',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [BOOLEAN]: {
         id: 'bool',
@@ -68,7 +71,8 @@ export const DEFAULT_PARAM = {
         type: BOOLEAN,
         typeDesc: 'bool',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [ENUM]: {
         id: 'select',
@@ -81,7 +85,8 @@ export const DEFAULT_PARAM = {
         typeDesc: 'enum',
         options: [],
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [MULTIPLE]: {
         id: 'multiple',
@@ -94,7 +99,8 @@ export const DEFAULT_PARAM = {
         type: MULTIPLE,
         typeDesc: 'multiple',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [CHECKBOX]: {
         id: 'checkbox',
@@ -105,7 +111,8 @@ export const DEFAULT_PARAM = {
         type: CHECKBOX,
         typeDesc: 'checkbox',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [SVN_TAG]: {
         id: 'svntag',
@@ -120,7 +127,8 @@ export const DEFAULT_PARAM = {
         type: SVN_TAG,
         typeDesc: 'svntag',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [GIT_REF]: {
         id: 'gitref',
@@ -134,7 +142,23 @@ export const DEFAULT_PARAM = {
         type: GIT_REF,
         typeDesc: 'gitref',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
+    },
+    [REPO_REF]: {
+        id: 'reporef',
+        name: 'reporef',
+        defaultValue: {
+            'repo-name': '',
+            branch: ''
+        },
+        defalutValueLabel: 'defaultValue',
+        defaultValueLabelTips: 'defaultValueDesc',
+        type: REPO_REF,
+        typeDesc: 'reporef',
+        required: true,
+        readOnly: false,
+        category: ''
     },
     [CODE_LIB]: {
         id: 'codelib',
@@ -148,24 +172,8 @@ export const DEFAULT_PARAM = {
         type: CODE_LIB,
         typeDesc: 'codelib',
         required: true,
-        readOnly: false
-    },
-    [CONTAINER_TYPE]: {
-        id: 'buildResource',
-        name: 'buildResource',
-        defaultValue: '',
-        defalutValueLabel: 'defaultValue',
-        defaultValueLabelTips: 'defaultValueDesc',
-        containerType: {
-            os: 'LINUX',
-            buildType: 'DOCKER'
-        },
-        desc: '',
-        options: [],
-        type: CONTAINER_TYPE,
-        typeDesc: 'buildResource',
-        required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [SUB_PIPELINE]: {
         id: 'subPipeline',
@@ -178,7 +186,8 @@ export const DEFAULT_PARAM = {
         type: SUB_PIPELINE,
         typeDesc: 'subPipeline',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     },
     [CUSTOM_FILE]: {
         id: 'file',
@@ -186,11 +195,13 @@ export const DEFAULT_PARAM = {
         defaultValue: '',
         defalutValueLabel: 'fileDefaultValueLabel',
         defaultValueLabelTips: 'customFileLabelTips',
+        enableVersionControl: false,
         desc: '',
         type: CUSTOM_FILE,
         typeDesc: 'custom_file',
         required: true,
-        readOnly: false
+        readOnly: false,
+        category: ''
     }
 }
 
@@ -273,7 +284,8 @@ export const ParamComponentMap = {
     [CONTAINER_TYPE]: 'Selector',
     [ARTIFACTORY]: 'Selector',
     [SUB_PIPELINE]: 'Selector',
-    [CUSTOM_FILE]: 'FileParamInput'
+    [CUSTOM_FILE]: 'FileParamInput',
+    [REPO_REF]: 'CascadeRequestSelector'
 }
 
 export const BOOLEAN_LIST = [
@@ -287,13 +299,25 @@ export const BOOLEAN_LIST = [
     }
 ]
 
-export function getRepoOption (type = 'CODE_SVN') {
+export function getRepoOption (type = 'CODE_SVN', paramId = 'repositoryHashId') {
     return {
         url: `/repository/api/user/repositories/{projectId}/hasPermissionList?permission=USE&repositoryType=${type}&page=1&pageSize=1000`,
-        paramId: 'repositoryHashId',
+        paramId,
         paramName: 'aliasName',
         searchable: true,
         hasAddItem: true
+    }
+}
+
+export function getBranchOption (name) {
+    if (!name) return {}
+    return {
+        url: `/process/api/user/buildParam/{projectId}/repository/refs?repositoryType=NAME&repositoryId=${name}`,
+        paramId: 'key',
+        paramName: 'value',
+        searchable: true,
+        settingKey: 'key',
+        displayKey: 'value'
     }
 }
 
@@ -338,6 +362,7 @@ export const isMultipleParam = paramType(MULTIPLE)
 export const isCheakboxParam = paramType(CHECKBOX)
 export const isSvnParam = paramType(SVN_TAG)
 export const isGitParam = paramType(GIT_REF)
+export const isRepoParam = paramType(REPO_REF)
 export const isCodelibParam = paramType(CODE_LIB)
 export const isBuildResourceParam = paramType(CONTAINER_TYPE)
 export const isArtifactoryParam = paramType(ARTIFACTORY)

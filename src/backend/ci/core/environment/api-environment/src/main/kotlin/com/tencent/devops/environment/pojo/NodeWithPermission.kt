@@ -27,6 +27,7 @@
 
 package com.tencent.devops.environment.pojo
 
+import com.tencent.devops.environment.pojo.thirdpartyagent.AgentBuildDetail
 import io.swagger.v3.oas.annotations.media.Schema
 
 @Schema(title = "NodeWithPermission-节点信息(权限)")
@@ -90,5 +91,11 @@ data class NodeWithPermission(
     @get:Schema(title = "job任务ID")
     val taskId: Long?,
     @get:Schema(title = "主机serverId")
-    val serverId: Long?
+    val serverId: Long?,
+    @get:Schema(title = "机型")
+    val size: String? = null,
+    @get:Schema(title = "该节点所属环境名")
+    val envNames: List<String>? = null,
+    @get:Schema(title = "最近构建信息")
+    var latestBuildDetail: AgentBuildDetail? = null
 )
