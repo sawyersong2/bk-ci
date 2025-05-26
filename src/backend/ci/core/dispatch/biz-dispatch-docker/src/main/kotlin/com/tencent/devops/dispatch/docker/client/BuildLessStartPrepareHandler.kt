@@ -52,7 +52,7 @@ class BuildLessStartPrepareHandler @Autowired constructor(
             logger.info("$buildLogKey start select buildLess.")
 
             // 区分无编译集群（k8s集群和原始docker集群）
-            val dockerRoutingType = dockerRoutingSdkService.getDockerRoutingType(event.projectId)
+            val dockerRoutingType = dockerRoutingSdkService.getBuildLessDockerRoutingType(event.projectId)
             if (dockerRoutingType == DockerRoutingType.KUBERNETES) {
                 clusterType = DockerHostClusterType.K8S_BUILD_LESS
             }

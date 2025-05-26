@@ -27,6 +27,7 @@
 
 package com.tencent.devops.common.dispatch.sdk.service
 
+import com.tencent.devops.common.dispatch.sdk.pojo.docker.DockerConstants.BUILDLESS_DOCKER_ROUTING_KEY_PREFIX
 import com.tencent.devops.common.dispatch.sdk.pojo.docker.DockerConstants.DOCKER_ROUTING_KEY_PREFIX
 import com.tencent.devops.common.dispatch.sdk.pojo.docker.DockerRoutingType
 import com.tencent.devops.common.redis.RedisOperation
@@ -40,10 +41,20 @@ class DockerRoutingSdkService constructor(
     @Value("\${dispatch.defaultDockerRoutingType:VM}")
     val defaultDockerRoutingType: String? = DockerRoutingType.VM.name
 
+    // 默认docker构建集群调度
+    @Value("\${dispatch.defaultBuildLessRoutingType:VM}")
+    val defaultBuildLessRoutingType: String? = DockerRoutingType.VM.name
+
     fun getDockerRoutingType(projectId: String): DockerRoutingType {
         val routingTypeStr = redisOperation.hget(DOCKER_ROUTING_KEY_PREFIX, projectId)
         logger.info("Project: $projectId get dockerRoutingType $routingTypeStr")
         return DockerRoutingType.valueOf(routingTypeStr ?: defaultDockerRoutingType!!)
+    }
+
+    fun getBuildLessDockerRoutingType(projectId: String): DockerRoutingType {
+        val routingTypeStr = redisOperation.hget(BUILDLESS_DOCKER_ROUTING_KEY_PREFIX, projectId)
+        logger.info("Project: $projectId get buildLess dockerRoutingType $routingTypeStr")
+        return DockerRoutingType.valueOf(routingTypeStr ?: defaultBuildLessRoutingType!!)
     }
 
     companion object {
