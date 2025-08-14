@@ -111,6 +111,8 @@ apiserver:
     # 在这里保存私钥用来解密apitoken
     # 推荐使用rsa-generate生成公私钥，rsa-generate可通过make打包获得  
     rsaPrivateKey: ""
+  # 任务回调地址,dispatcher会通过此地址通知任务执行结果
+  taskCallbackUrl:
 
 docker:
   enable: true

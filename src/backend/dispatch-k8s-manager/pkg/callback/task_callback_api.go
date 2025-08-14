@@ -31,6 +31,7 @@ func TaskCallback(taskInfo *TaskCallbackInfo) {
 	body, err := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		logs.Error(fmt.Sprintf("%s TaskCallback error. %s", taskInfo.TaskId, err))
+		return
 	}
 	logs.Info(fmt.Sprintf("%s TaskCallback success. %s", taskInfo.TaskId, body))
 }
