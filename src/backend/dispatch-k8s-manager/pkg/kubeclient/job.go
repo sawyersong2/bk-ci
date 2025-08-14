@@ -77,19 +77,9 @@ func DeleteJob(jobName string) error {
 	)
 }
 
-// ListCompletedJobs 列出所有已完成的Job
-func ListCompletedJobs() (*batchv1.JobList, error) {
-	return kubeClient.BatchV1().Jobs(config.Config.Kubernetes.NameSpace).List(
-		context.TODO(),
-		metav1.ListOptions{
-			FieldSelector: "status.conditions.type=Complete,status.conditions.type=Failed",
-		},
-	)
-}
-
 // DeleteCompletedJobsOlderThan 删除完成时间超过指定天数的已完成Job
 func DeleteCompletedJobsOlderThan(days int) (int, error) {
-	jobs, err := ListCompletedJobs()
+	jobs, err := listJob()
 	if err != nil {
 		return 0, err
 	}
@@ -113,6 +103,14 @@ func DeleteCompletedJobsOlderThan(days int) (int, error) {
 	}
 
 	return deletedCount, nil
+}
+
+// listJob 列出所有已完成的Job
+func listJob() (*batchv1.JobList, error) {
+	return kubeClient.BatchV1().Jobs(config.Config.Kubernetes.NameSpace).List(
+		context.TODO(),
+		metav1.ListOptions{},
+	)
 }
 
 // isJobCompleted 检查Job是否已完成（成功或失败）
