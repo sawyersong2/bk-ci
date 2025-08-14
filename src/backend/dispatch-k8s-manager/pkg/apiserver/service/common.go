@@ -96,7 +96,7 @@ func getEnvs(env map[string]string) (envs []corev1.EnvVar) {
 
 	// 新增POD_NAMESPACE环境变量
 	envs = append(envs, corev1.EnvVar{
-		Name: "POD_NAME",
+		Name: "POD_NAMESPACE",
 		ValueFrom: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
 				FieldPath: "metadata.namespace",
@@ -104,6 +104,15 @@ func getEnvs(env map[string]string) (envs []corev1.EnvVar) {
 		},
 	})
 
+	// 新增HOST_IP环境变量
+	envs = append(envs, corev1.EnvVar{
+		Name: "HOST_IP",
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "status.hostIP",
+			},
+		},
+	})
 	return envs
 }
 
