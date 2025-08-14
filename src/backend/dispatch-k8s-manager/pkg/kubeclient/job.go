@@ -82,7 +82,7 @@ func ListCompletedJobs() (*batchv1.JobList, error) {
 	return kubeClient.BatchV1().Jobs(config.Config.Kubernetes.NameSpace).List(
 		context.TODO(),
 		metav1.ListOptions{
-			FieldSelector: "status.conditions.type in (Complete,Failed)",
+			FieldSelector: "status.conditions.type=Complete,status.conditions.type=Failed",
 		},
 	)
 }

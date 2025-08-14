@@ -42,7 +42,7 @@ func initClearExpiredTaskDBData() error {
 func initClearCompletedKubernetesJobs() error {
 	c := cron.New()
 
-	if _, err := c.AddFunc("@every 10m", func() {
+	if _, err := c.AddFunc("@every 5m", func() {
 		logs.Info("start clear completed kubernetes jobs")
 		if deletedCount, err := kubeclient.DeleteCompletedJobsOlderThan(1); err != nil {
 			logs.Error("clear completed kubernetes jobs error ", err)
