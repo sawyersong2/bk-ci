@@ -113,6 +113,16 @@ func getEnvs(env map[string]string) (envs []corev1.EnvVar) {
 			},
 		},
 	})
+
+	// 新增POD_IP环境变量
+	envs = append(envs, corev1.EnvVar{
+		Name: "POD_IP",
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "status.podIP",
+			},
+		},
+	})
 	return envs
 }
 

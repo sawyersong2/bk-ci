@@ -79,7 +79,7 @@ func DeleteJob(jobName string) error {
 
 // DeleteCompletedJobsOlderThan 删除完成时间超过指定天数的已完成Job
 func DeleteCompletedJobsOlderThan(days int) (int, error) {
-	jobs, err := listJob()
+	jobs, err := listJobs()
 	if err != nil {
 		return 0, err
 	}
@@ -105,8 +105,8 @@ func DeleteCompletedJobsOlderThan(days int) (int, error) {
 	return deletedCount, nil
 }
 
-// listJob 列出所有已完成的Job
-func listJob() (*batchv1.JobList, error) {
+// listJobs 列出所有已完成的Job
+func listJobs() (*batchv1.JobList, error) {
 	return kubeClient.BatchV1().Jobs(config.Config.Kubernetes.NameSpace).List(
 		context.TODO(),
 		metav1.ListOptions{},

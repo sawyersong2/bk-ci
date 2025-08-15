@@ -10,11 +10,11 @@ import (
 
 func InitCronJob() error {
 	if err := initClearExpiredTaskDBData(); err != nil {
-		return err
+		logs.Error("init clear expired task db data error ", err)
 	}
 
 	if err := initClearCompletedKubernetesJobs(); err != nil {
-		return err
+		logs.Error("init clear completed kubernetes jobs error ", err)
 	}
 
 	return nil
