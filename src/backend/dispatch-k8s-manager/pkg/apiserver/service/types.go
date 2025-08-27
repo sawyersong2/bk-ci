@@ -9,6 +9,7 @@ type CommonWorkLoad struct {
 	Resource      CommonWorkLoadResource `json:"resource"  binding:"required"`    // 工作负载资源
 	Env           map[string]string      `json:"env"`                             // 环境变量
 	Command       []string               `json:"command"`                         // 启动命令
+	MountPath     string                 `json:"mountPath"`                       // 挂载路径
 	NFSs          []types.NFS            `json:"nfs"`                             // nfs配置
 }
 

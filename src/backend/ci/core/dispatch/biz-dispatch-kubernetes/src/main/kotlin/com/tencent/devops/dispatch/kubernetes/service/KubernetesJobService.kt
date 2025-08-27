@@ -93,7 +93,8 @@ class KubernetesJobService @Autowired constructor(
                 podNameSelector = PodNameSelector(
                     selector = podNameSelector,
                     usePodData = true
-                )
+                ),
+                mountPath = mountPath ?: ""
             )
         }
 

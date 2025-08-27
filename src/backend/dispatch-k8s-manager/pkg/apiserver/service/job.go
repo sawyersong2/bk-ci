@@ -28,7 +28,7 @@ func CreateJob(job *Job) (taskId string, err error) {
 		}
 	}
 
-	volumes, volumeMounts := getJobVolumeAndMount(job.Name, job.NFSs, volumeHostPathWorkloadName)
+	volumes, volumeMounts := getJobVolumeAndMount(job.Name, job.NFSs, job.MountPath, volumeHostPathWorkloadName)
 
 	var backOffLimit int32 = 0
 
@@ -86,12 +86,17 @@ func CreateJob(job *Job) (taskId string, err error) {
 func getJobVolumeAndMount(
 	workloadName string,
 	nFSs []types.NFS,
+	mountPath string,
 	volumeHostPathWorkloadName string,
 ) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+	// 优先处理依赖父 pod的挂载
 	dataHostPath := filepath.Join(config.Config.Dispatch.Volume.HostPath.DataHostDir, workloadName)
 	if volumeHostPathWorkloadName != "" {
 		dataHostPath = filepath.Join(config.Config.Dispatch.Volume.HostPath.DataHostDir, volumeHostPathWorkloadName)
+	} else if mountPath != "" {
+		dataHostPath = mountPath
 	}
+
 	volumes = []corev1.Volume{
 		{
 			Name: config.DataVolumeName,
@@ -110,6 +115,7 @@ func getJobVolumeAndMount(
 		},
 	}
 
+	// 追加nfs的挂载
 	if len(nFSs) > 0 {
 		for _, nfs := range nFSs {
 			name := fmt.Sprintf("%s_%d", config.NfsVolumeNamePrefix, time.Now().UnixNano())

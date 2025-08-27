@@ -49,6 +49,7 @@ data class Job(
     val podNameSelector: PodNameSelector?,
     val activeDeadlineSeconds: Int? = 4800,
     val ttlSecondsAfterFinished: Int? = 600,
+    val mountPath: String = "",
     val nfs: List<NfsConfig>? = null
 )
 
