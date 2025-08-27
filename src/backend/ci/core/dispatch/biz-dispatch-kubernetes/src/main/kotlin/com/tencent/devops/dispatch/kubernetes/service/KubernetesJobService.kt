@@ -59,6 +59,15 @@ class KubernetesJobService @Autowired constructor(
     }
 
     override fun createJob(userId: String, jobReq: DispatchJobReq): DispatchTaskResp {
+        val podNameSelectorEntity = if (jobReq.podNameSelector.isNotBlank()) {
+            PodNameSelector(
+                selector = jobReq.podNameSelector,
+                usePodData = true
+            )
+        } else {
+            null
+        }
+
         val job = with(jobReq) {
             Job(
                 name = alias,
@@ -90,10 +99,7 @@ class KubernetesJobService @Autowired constructor(
                         mountPath = nfsVo.mountPath
                     )
                 },
-                podNameSelector = PodNameSelector(
-                    selector = podNameSelector,
-                    usePodData = true
-                ),
+                podNameSelector = podNameSelectorEntity,
                 mountPath = mountPath ?: ""
             )
         }

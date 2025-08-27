@@ -36,6 +36,7 @@ import com.tencent.devops.dispatch.kubernetes.pojo.DockerRegistry
 data class DispatchJobReq(
     val alias: String,
     val activeDeadlineSeconds: Int? = null,
+    val ttlSecondsAfterFinished: Int? = null,
     val image: String,
     val registry: DockerRegistry,
     val params: JobParam? = null,
